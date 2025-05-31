@@ -1,7 +1,3 @@
-Here is the direct English translation of your content:
-
----
-
 # Chat Client
 
 A modern, extensible chat client built with Tauri, Vue 3, and Rust. Features a powerful plugin architecture that supports dynamic loading and management of chat plugins.
