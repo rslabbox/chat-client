@@ -12,10 +12,23 @@
 
     <div class="config-content">
 
-      <el-select v-model="value" placeholder="Select" style="width: 100%; margin-bottom: 10px;">
-        <el-option v-for="item in pluginLists" :key="item.id" :label="item.name" :value="item.id"
-          :disabled="item.disabled" />
+      <el-select
+        v-model="selectedPluginId"
+        placeholder="选择插件"
+        style="width: 100%; margin-bottom: 10px;"
+        @change="handlePluginChange"
+        :loading="pluginStore.isLoading"
+      >
+        <el-option
+          v-for="plugin in pluginStore.plugins"
+          :key="plugin.id"
+          :label="plugin.name"
+          :value="plugin.id"
+          :disabled="plugin.disabled"
+        >
+        </el-option>
       </el-select>
+
       <!-- 这里可以添加其他配置项 -->
       <el-empty description="配置项待添加" :image-size="80" />
     </div>
@@ -35,46 +48,48 @@
 
 <script setup lang="ts">
 import { Link, Close } from '@element-plus/icons-vue'
-import { ref, onMounted } from 'vue'
-import { scanPlugins, type PluginMetadata } from '@/api'
+import { ref, onMounted, computed, watch } from 'vue'
+import { usePluginStore } from '@/stores/plugins'
+import { useMessageStore } from '@/stores/messages'
 
-const value = ref('')
-const pluginLists = ref<PluginMetadata[]>([])
+const pluginStore = usePluginStore()
+const messageStore = useMessageStore()
+const selectedPluginId = ref<string>('')
 
-// 加载插件列表
-const loadPlugins = async () => {
-  try {
-    const plugins = await scanPlugins()
-    pluginLists.value = plugins
-  } catch (error) {
-    console.error('Failed to load plugins:', error)
-    // 如果调用失败，使用空数组
-    pluginLists.value = []
+// 计算属性
+const isConnected = computed(() => pluginStore.isCurrentPluginConnected)
+
+// 监听当前插件变化，同步选择框
+watch(() => pluginStore.currentPluginId, (newId) => {
+  if (newId) {
+    selectedPluginId.value = newId
+  }
+}, { immediate: true })
+
+// 处理插件切换
+const handlePluginChange = async (pluginId: string) => {
+  if (pluginId && pluginId !== pluginStore.currentPluginId) {
+    await pluginStore.switchToPlugin(pluginId)
   }
 }
 
-interface Props {
-  isConnected: boolean
+// 处理连接
+const handleConnect = async () => {
+  if (pluginStore.currentPluginId) {
+    await pluginStore.connectPluginById(pluginStore.currentPluginId)
+  }
 }
 
-defineProps<Props>()
-
-const emit = defineEmits<{
-  connect: []
-  disconnect: []
-}>()
-
-const handleConnect = () => {
-  emit('connect')
-}
-
-const handleDisconnect = () => {
-  emit('disconnect')
+// 处理断开连接
+const handleDisconnect = async () => {
+  if (pluginStore.currentPluginId) {
+    await pluginStore.disconnectPluginById(pluginStore.currentPluginId)
+  }
 }
 
 // 组件挂载时加载插件列表
 onMounted(() => {
-  loadPlugins()
+  pluginStore.loadPlugins()
 })
 </script>
 
@@ -112,5 +127,24 @@ onMounted(() => {
   margin-top: auto;
 }
 
+.message-stats {
+  margin-bottom: 15px;
+}
 
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #606266;
+}
 </style>

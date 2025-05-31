@@ -6,11 +6,7 @@
       class="left-panel"
       :style="{ width: leftPanelWidth + 'px' }"
     >
-      <ConfigPanel 
-        @connect="handleConnect"
-        @disconnect="handleDisconnect"
-        :isConnected="isConnected"
-      />
+      <ConfigPanel />
     </div>
 
     <!-- 垂直分割线 -->
@@ -22,15 +18,12 @@
     <!-- 右侧消息区域 -->
     <div class="right-panel">
       <!-- 上半部分：消息显示区 -->
-      <div 
+      <div
         ref="messageDisplay"
         class="message-display"
         :style="{ height: messageDisplayHeight + 'px' }"
       >
-        <MessageDisplay 
-          :messages="messages"
-          @clear="handleClearMessages"
-        />
+        <MessageDisplay/>
       </div>
 
       <!-- 水平分割线 -->
@@ -41,10 +34,7 @@
 
       <!-- 下半部分：消息发送区 -->
       <div class="message-input">
-        <MessageInput 
-          @send="handleSendMessage"
-          @clear="handleClearInput"
-        />
+        <MessageInput/>
       </div>
     </div>
   </div>
@@ -56,18 +46,9 @@ import ConfigPanel from '../components/ConfigPanel.vue'
 import MessageDisplay from '../components/MessageDisplay.vue'
 import MessageInput from '../components/MessageInput.vue'
 
-interface Message {
-  id: string
-  content: string
-  timestamp: Date
-  type: 'sent' | 'received'
-}
-
 // 响应式数据
 const leftPanelWidth = ref(300) // 左侧面板宽度，默认占1/4
 const messageDisplayHeight = ref(200) // 消息显示区高度
-const messages = ref<Message[]>([])
-const isConnected = ref(false)
 
 // DOM引用
 const leftPanel = ref<HTMLElement>()
@@ -80,47 +61,6 @@ let startX = 0
 let startY = 0
 let startWidth = 0
 let startHeight = 0
-
-// 事件处理函数
-const handleConnect = () => {
-  isConnected.value = true
-  console.log('连接插件')
-}
-
-const handleDisconnect = () => {
-  isConnected.value = false
-  console.log('断开连接')
-}
-
-const handleSendMessage = (content: string) => {
-  const message: Message = {
-    id: Date.now().toString(),
-    content,
-    timestamp: new Date(),
-    type: 'sent'
-  }
-  messages.value.push(message)
-  console.log('发送消息:', content)
-  
-  // 模拟接收回复
-  setTimeout(() => {
-    const reply: Message = {
-      id: (Date.now() + 1).toString(),
-      content: `收到消息: ${content}`,
-      timestamp: new Date(),
-      type: 'received'
-    }
-    messages.value.push(reply)
-  }, 1000)
-}
-
-const handleClearMessages = () => {
-  messages.value = []
-}
-
-const handleClearInput = () => {
-  console.log('清空输入')
-}
 
 // 垂直调整大小
 const startVerticalResize = (e: MouseEvent) => {
@@ -189,9 +129,6 @@ onMounted(() => {
     }
     
     messageDisplayHeight.value = window.innerHeight - 300
-    // if (messageDisplayHeight.value > maxHeight) {
-    //   messageDisplayHeight.value = maxHeight
-    // }
   }
   
   window.addEventListener('resize', handleResize)

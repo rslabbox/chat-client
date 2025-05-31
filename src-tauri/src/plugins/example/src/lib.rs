@@ -35,6 +35,11 @@ impl PluginHandler for ExamplePlugin {
         Ok(())
     }
 
+    fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
+        println!("[{}] Received message: {}", self.name, message);
+        Ok(format!("Echo from {}: {}", self.name, message))
+    }
+
     fn get_metadata(&self) -> PluginMetadata {
         PluginMetadata {
             id: "example_plugin".to_string(),

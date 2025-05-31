@@ -18,16 +18,19 @@ pub struct PluginMetadata {
 pub trait PluginHandler: Send + Sync {
     /// 插件挂载时调用
     fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>>;
-    
+
     /// 插件卸载时调用
     fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>>;
-    
+
     /// 连接时调用
     fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>>;
-    
+
     /// 断开连接时调用
     fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>>;
-    
+
+    /// 处理消息
+    fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>>;
+
     /// 获取插件元数据
     fn get_metadata(&self) -> PluginMetadata;
 }

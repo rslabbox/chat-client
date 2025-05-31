@@ -7,7 +7,16 @@
 export type * from './types'
 
 // 导出插件相关 API
-export { scanPlugins } from './plugins'
+export {
+  scanPlugins,
+  mountPlugin,
+  disposePlugin,
+  connectPlugin,
+  disconnectPlugin,
+  getPluginStatus,
+  getCurrentPlugin,
+  sendMessageToPlugin
+} from './plugins'
 
 // 导出常用的 Tauri API（重新导出以便统一管理）
 export { invoke } from '@tauri-apps/api/core'

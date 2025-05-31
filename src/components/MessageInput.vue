@@ -48,29 +48,29 @@
 import { ref } from 'vue'
 import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useMessageStore } from '@/stores/messages'
 
-const emit = defineEmits<{
-  send: [content: string]
-  clear: []
-}>()
-
+const messageStore = useMessageStore()
 const inputText = ref('')
 
-const handleSend = () => {
+const handleSend = async () => {
   const content = inputText.value.trim()
   if (!content) {
     ElMessage.warning('请输入消息内容')
     return
   }
-  
-  emit('send', content)
-  inputText.value = ''
-  ElMessage.success('消息发送成功')
+
+  try {
+    const response = await messageStore.sendMessage(content)
+    inputText.value = ''
+    console.log(`插件响应: ${response}`)
+  } catch (error) {
+    // 错误已在 store 中处理，这里不需要额外处理
+  }
 }
 
 const handleClear = () => {
   inputText.value = ''
-  emit('clear')
 }
 </script>
 

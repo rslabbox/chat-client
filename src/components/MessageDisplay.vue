@@ -14,8 +14,8 @@
     </div>
     
     <div ref="messageContainer" class="message-container">
-      <div 
-        v-for="message in messages" 
+      <div
+        v-for="message in currentMessages"
         :key="message.id"
         :class="['message-item', message.type]"
       >
@@ -26,9 +26,9 @@
           </div>
         </div>
       </div>
-      
-      <div v-if="messages.length === 0" class="empty-messages">
-        <el-empty 
+
+      <div v-if="currentMessages.length === 0" class="empty-messages">
+        <el-empty
           description="暂无消息"
           :image-size="100"
         />
@@ -39,24 +39,12 @@
 
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Delete } from '@element-plus/icons-vue'
+import { useMessageStore } from '@/stores/messages'
 
-interface Message {
-  id: string
-  content: string
-  timestamp: Date
-  type: 'sent' | 'received'
-}
-
-interface Props {
-  messages: Message[]
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  clear: []
-}>()
+const messageStore = useMessageStore()
+const { currentMessages } = storeToRefs(messageStore)
 
 const messageContainer = ref<HTMLElement>()
 
@@ -69,7 +57,7 @@ const formatTime = (date: Date) => {
 }
 
 const handleClear = () => {
-  emit('clear')
+  messageStore.clearPluginMessages()
 }
 
 const scrollToBottom = () => {
@@ -81,9 +69,9 @@ const scrollToBottom = () => {
 }
 
 // 监听消息变化，自动滚动到底部
-watch(() => props.messages, () => {
+watch(currentMessages, () => {
   scrollToBottom()
-}, { deep: true })
+}, { deep: true, immediate: true })
 </script>
 
 <style scoped>
