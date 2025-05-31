@@ -1,0 +1,9 @@
+[package]
+name = "plugin-interface"
+version = "0.1.0"
+edition = "2021"
+description = "Plugin interface for chat-client application"
+authors = ["Your Name"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
