@@ -1,5 +1,6 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
+use log::{error, info, warn};
 use plugin_interface::{
     CreatePluginFn, DestroyPluginFn, PluginHandler, PluginMetadata, CREATE_PLUGIN_SYMBOL,
     DESTROY_PLUGIN_SYMBOL, HostCallbacks,
@@ -65,7 +66,7 @@ impl PluginManager {
         if !message.is_null() {
             unsafe {
                 if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    println!("[PLUGIN INFO] {}", msg);
+                    info!("[PLUGIN] {}", msg);
                 }
             }
         }
@@ -76,7 +77,7 @@ impl PluginManager {
         if !message.is_null() {
             unsafe {
                 if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    eprintln!("[PLUGIN WARN] {}", msg);
+                    warn!("[PLUGIN] {}", msg);
                 }
             }
         }
@@ -87,7 +88,7 @@ impl PluginManager {
         if !message.is_null() {
             unsafe {
                 if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    eprintln!("[PLUGIN ERROR] {}", msg);
+                    error!("[PLUGIN] {}", msg);
                 }
             }
         }
@@ -101,21 +102,19 @@ impl PluginManager {
                     CStr::from_ptr(event).to_str(),
                     CStr::from_ptr(payload).to_str(),
                 ) {
-                    println!("[PLUGIN->FRONTEND] Event: {}, Payload: {}", event_str, payload_str);
 
                     // 实现实际的Tauri事件发送
                     if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
                         match app_handle.emit(event_str, payload_str) {
                             Ok(_) => {
-                                println!("[PLUGIN->FRONTEND] Event sent successfully: {}", event_str);
                                 return true;
                             }
                             Err(e) => {
-                                eprintln!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
+                                error!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
                             }
                         }
                     } else {
-                        eprintln!("[PLUGIN->FRONTEND] AppHandle not available");
+                        error!("[PLUGIN->FRONTEND] AppHandle not available");
                     }
                 }
             }
@@ -143,11 +142,10 @@ impl PluginManager {
     extern "C" fn host_call_other_plugin(plugin_id: *const c_char, message: *const c_char) -> *const c_char {
         if !plugin_id.is_null() && !message.is_null() {
             unsafe {
-                if let (Ok(id_str), Ok(msg_str)) = (
+                if let (Ok(id_str), Ok(_msg_str)) = (
                     CStr::from_ptr(plugin_id).to_str(),
                     CStr::from_ptr(message).to_str(),
                 ) {
-                    println!("[PLUGIN->PLUGIN] {} -> {}", id_str, msg_str);
                     // TODO: 实现实际的插件间通信逻辑
                     let response = format!("response_from_{}", id_str);
                     if let Ok(c_string) = CString::new(response) {
@@ -175,7 +173,7 @@ impl PluginManager {
         if let Some(current_id) = current_plugin_id {
             if current_id != plugin_id {
                 if let Err(e) = self.dispose_plugin(&current_id) {
-                    eprintln!("Failed to dispose current plugin: {}", e);
+                    error!("Failed to dispose current plugin: {}", e);
                 }
             }
         }
@@ -419,7 +417,7 @@ impl PluginManager {
         for plugin_id in mounted_plugin_ids {
             if let Some(instance) = instances.get_mut(&plugin_id) {
                 if instance.is_mounted {
-                    println!("正在清理插件: {}", instance.metadata.name);
+                    info!("正在清理插件: {}", instance.metadata.name);
 
                     // 先断开连接
                     if instance.is_connected {
@@ -440,7 +438,7 @@ impl PluginManager {
                     }
 
                     instance.is_mounted = false;
-                    println!("插件 {} 清理完成", instance.metadata.name);
+                    info!("插件 {} 清理完成", instance.metadata.name);
                 }
             }
         }
@@ -448,7 +446,7 @@ impl PluginManager {
         // 清除当前插件状态
         *self.current_plugin.lock().unwrap() = None;
 
-        println!("所有插件清理完成");
+        info!("所有插件清理完成");
     }
 
     /// 查找插件元数据
