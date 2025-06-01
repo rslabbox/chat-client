@@ -22,10 +22,6 @@ default-run = "chat-client"
 name = "chat_client_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[[bin]]
-name = "test_plugins"
-path = "src/bin/test_plugins.rs"
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

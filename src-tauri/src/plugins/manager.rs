@@ -5,9 +5,13 @@ use plugin_interface::{
     DESTROY_PLUGIN_SYMBOL, HostCallbacks,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use tauri::{AppHandle, Emitter};
+
+// 全局AppHandle存储，用于在回调函数中访问
+static GLOBAL_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 /// 插件实例信息
 #[derive(Debug)]
@@ -23,23 +27,29 @@ unsafe impl Send for PluginInstance {}
 unsafe impl Sync for PluginInstance {}
 
 /// 插件管理器
+#[derive(Debug)]
 pub struct PluginManager {
     loader: PluginLoader,
     instances: Arc<Mutex<HashMap<String, PluginInstance>>>,
     current_plugin: Arc<Mutex<Option<String>>>,
+    app_handle: AppHandle,
 }
 
 impl PluginManager {
-    pub fn new() -> Self {
+    pub fn new(app_handle: AppHandle) -> Self {
         Self {
             loader: PluginLoader::new(),
             instances: Arc::new(Mutex::new(HashMap::new())),
             current_plugin: Arc::new(Mutex::new(None)),
+            app_handle,
         }
     }
 
     /// 创建主程序回调函数集合
     fn create_host_callbacks(&self) -> HostCallbacks {
+        // 将AppHandle克隆并存储在静态变量中，供回调函数使用
+        GLOBAL_APP_HANDLE.set(self.app_handle.clone()).ok();
+
         HostCallbacks {
             log_info: Self::host_log_info,
             log_warn: Self::host_log_warn,
@@ -92,8 +102,21 @@ impl PluginManager {
                     CStr::from_ptr(payload).to_str(),
                 ) {
                     println!("[PLUGIN->FRONTEND] Event: {}, Payload: {}", event_str, payload_str);
-                    // TODO: 实现实际的Tauri事件发送
-                    return true;
+
+                    // 实现实际的Tauri事件发送
+                    if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
+                        match app_handle.emit(event_str, payload_str) {
+                            Ok(_) => {
+                                println!("[PLUGIN->FRONTEND] Event sent successfully: {}", event_str);
+                                return true;
+                            }
+                            Err(e) => {
+                                eprintln!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
+                            }
+                        }
+                    } else {
+                        eprintln!("[PLUGIN->FRONTEND] AppHandle not available");
+                    }
                 }
             }
         }
@@ -438,8 +461,4 @@ impl PluginManager {
     }
 }
 
-impl Default for PluginManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+

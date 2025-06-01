@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { usePluginStore } from './plugins'
 
 export interface PluginMessage {
@@ -23,6 +24,9 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 获取插件 store 实例
   const pluginStore = usePluginStore()
+
+  // 事件监听器
+  const eventListeners = ref<UnlistenFn[]>([])
 
   // 计算属性 - 当前插件的消息
   const currentMessages = computed(() => {
@@ -156,8 +160,100 @@ export const useMessageStore = defineStore('messages', () => {
     }
   }
 
-  // 初始化时加载数据
+  // 设置事件监听器
+  const setupEventListeners = async () => {
+    try {
+      // 监听插件挂载事件
+      const unlistenMount = await listen('plugin-mounted', (event) => {
+        console.log('Plugin mounted event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          console.log(data)
+          addMessage(`插件 ${data.plugin} 已挂载`, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-mounted event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenMount)
+
+      // 监听插件卸载事件
+      const unlistenDispose = await listen('plugin-disposed', (event) => {
+        console.log('Plugin disposed event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          addMessage(`插件 ${data.plugin} 已卸载`, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-disposed event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenDispose)
+
+      // 监听插件连接事件
+      const unlistenConnect = await listen('plugin-connected', (event) => {
+        console.log('Plugin connected event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          addMessage(`插件 ${data.plugin} 已连接`, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-connected event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenConnect)
+
+      // 监听插件断开连接事件
+      const unlistenDisconnect = await listen('plugin-disconnected', (event) => {
+        console.log('Plugin disconnected event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          addMessage(`插件 ${data.plugin} 已断开连接`, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-disconnected event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenDisconnect)
+
+      // 监听插件消息接收事件
+      const unlistenMessageReceived = await listen('plugin-message-received', (event) => {
+        console.log('Plugin message received event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          console.log(`[${data.plugin}] 收到消息: ${data.message}`, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-message-received event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenMessageReceived)
+
+      // 监听插件消息响应事件
+      const unlistenMessageResponse = await listen('plugin-message-response', (event) => {
+        try {
+          const data = JSON.parse(event.payload as string)
+          addMessage(data.response, 'received', data.plugin)
+        } catch (e) {
+          console.error('Failed to parse plugin-message-response event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenMessageResponse)
+    } catch (error) {
+      console.error('Failed to setup event listeners:', error)
+    }
+  }
+
+  // 清理事件监听器
+  const cleanupEventListeners = () => {
+    eventListeners.value.forEach(unlisten => {
+      try {
+        unlisten()
+      } catch (error) {
+        console.error('Failed to unlisten event:', error)
+      }
+    })
+    eventListeners.value = []
+  }
+
+  // 初始化时加载数据和设置事件监听器
   loadFromStorage()
+  setupEventListeners()
 
   // 调试信息
   console.log('消息 Store 已初始化')
@@ -166,11 +262,11 @@ export const useMessageStore = defineStore('messages', () => {
     // 状态
     messagesByPlugin,
     isLoading,
-    
+
     // 计算属性
     currentMessages,
     getMessageCounts,
-    
+
     // 方法
     addMessage,
     clearPluginMessages,
@@ -178,6 +274,7 @@ export const useMessageStore = defineStore('messages', () => {
     getPluginMessages,
     sendMessage,
     loadFromStorage,
-    saveToStorage
+    saveToStorage,
+    cleanupEventListeners
   }
 })

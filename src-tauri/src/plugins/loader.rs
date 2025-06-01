@@ -4,6 +4,7 @@ use plugin_interface::PluginMetadata;
 
 use crate::plugins::config::PluginConfig;
 
+#[derive(Debug)]
 pub struct PluginLoader;
 
 impl PluginLoader {

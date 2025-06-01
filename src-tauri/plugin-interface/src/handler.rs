@@ -1,5 +1,6 @@
 use crate::callbacks::{HostCallbacks, set_host_callbacks};
 use crate::metadata::PluginMetadata;
+use crate::send_to_frontend;
 
 /// 插件处理器 trait
 /// 定义了插件的生命周期方法
@@ -9,6 +10,11 @@ pub trait PluginHandler: Send + Sync {
         // 默认实现：设置全局回调函数
         set_host_callbacks(callbacks).map_err(|_| "Failed to set host callbacks")?;
         Ok(())
+    }
+
+    fn send_message_to_frontend(&self, payload: &str) -> bool {
+        let plugin_id = self.get_metadata().id;
+        send_to_frontend("plugin-message-response", &format!("{{\"plugin\": \"{}\", \"response\": \"{}\"}}", plugin_id, payload))
     }
 
     /// 插件挂载时调用

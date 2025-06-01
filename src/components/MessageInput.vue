@@ -61,9 +61,8 @@ const handleSend = async () => {
   }
 
   try {
-    const response = await messageStore.sendMessage(content)
+    await messageStore.sendMessage(content)
     inputText.value = ''
-    console.log(`插件响应: ${response}`)
   } catch (error) {
     // 错误已在 store 中处理，这里不需要额外处理
   }

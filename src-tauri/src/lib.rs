@@ -24,6 +24,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
+    // 初始化插件管理器
+    api::plugins::initialize_plugin_manager(app.handle().clone());
+
     app.run(|_app_handle, event| {
         match event {
             RunEvent::ExitRequested { .. } => {
