@@ -1,4 +1,7 @@
-use plugin_interface::{get_app_config, plugin_info, plugin_warn, PluginHandler, PluginMetadata};
+use plugin_interface::{
+    get_app_config, plugin_info, plugin_warn, PluginHandler, PluginMetadata, PluginInterface,
+    create_plugin_interface_from_handler,
+};
 
 /// 示例插件实现
 pub struct ExamplePlugin {
@@ -67,17 +70,21 @@ impl PluginHandler for ExamplePlugin {
 
 /// 创建插件实例的导出函数
 #[no_mangle]
-pub extern "C" fn create_plugin() -> *mut dyn PluginHandler {
+pub extern "C" fn create_plugin() -> *mut PluginInterface {
     let plugin = ExamplePlugin::new();
-    Box::into_raw(Box::new(plugin))
+    let handler: Box<dyn PluginHandler> = Box::new(plugin);
+    create_plugin_interface_from_handler(handler)
 }
 
 /// 销毁插件实例的导出函数
 #[no_mangle]
-pub extern "C" fn destroy_plugin(plugin: *mut dyn PluginHandler) {
-    if !plugin.is_null() {
+pub extern "C" fn destroy_plugin(interface: *mut PluginInterface) {
+    if !interface.is_null() {
         unsafe {
-            let _ = Box::from_raw(plugin);
+            // 调用接口的销毁函数
+            ((*interface).destroy)((*interface).plugin_ptr);
+            // 释放接口本身
+            let _ = Box::from_raw(interface);
         }
     }
 }

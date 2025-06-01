@@ -2,7 +2,7 @@ use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use log::{error, info, warn};
 use plugin_interface::{
-    CreatePluginFn, DestroyPluginFn, PluginHandler, PluginMetadata, CREATE_PLUGIN_SYMBOL,
+    CreatePluginFn, DestroyPluginFn, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL,
     DESTROY_PLUGIN_SYMBOL, HostCallbacks,
 };
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ static GLOBAL_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 #[derive(Debug)]
 pub struct PluginInstance {
     pub metadata: PluginMetadata,
-    pub handler: *mut dyn PluginHandler,
+    pub handler: *mut PluginInterface,
     pub library: Library,
     pub is_mounted: bool,
     pub is_connected: bool,
@@ -215,8 +215,8 @@ impl PluginManager {
 
         // 初始化插件（设置回调函数）
         let callbacks = self.create_host_callbacks();
-        let init_result = unsafe { (*handler).initialize(callbacks) };
-        if let Err(e) = init_result {
+        let init_result = unsafe { ((*handler).initialize)((*handler).plugin_ptr, callbacks) };
+        if init_result != 0 {
             // 清理失败的插件实例
             unsafe {
                 let destroy_plugin: Result<Symbol<DestroyPluginFn>, _> =
@@ -225,11 +225,16 @@ impl PluginManager {
                     destroy_fn(handler);
                 }
             }
-            return Err(format!("插件初始化失败: {}", e));
+            return Err("插件初始化失败".to_string());
         }
 
         // 调用 on_mount
-        let result = unsafe { (*handler).on_mount() };
+        let mount_result = unsafe { ((*handler).on_mount)((*handler).plugin_ptr) };
+        let result: Result<(), Box<dyn std::error::Error>> = if mount_result == 0 {
+            Ok(())
+        } else {
+            Err("插件挂载失败".into())
+        };
 
         match result {
             Ok(_) => {
@@ -272,12 +277,17 @@ impl PluginManager {
 
             // 先断开连接
             if instance.is_connected {
-                let _ = unsafe { (*instance.handler).on_disconnect() };
+                let _ = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
                 instance.is_connected = false;
             }
 
             // 调用 on_dispose
-            let result = unsafe { (*instance.handler).on_dispose() };
+            let dispose_result = unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
+            let result: Result<(), Box<dyn std::error::Error>> = if dispose_result == 0 {
+                Ok(())
+            } else {
+                Err("插件卸载失败".into())
+            };
 
             // 销毁插件实例
             unsafe {
@@ -321,7 +331,12 @@ impl PluginManager {
                 return Ok(format!("插件 {} 已经连接", instance.metadata.name));
             }
 
-            let result = unsafe { (*instance.handler).on_connect() };
+            let connect_result = unsafe { ((*instance.handler).on_connect)((*instance.handler).plugin_ptr) };
+            let result: Result<(), Box<dyn std::error::Error>> = if connect_result == 0 {
+                Ok(())
+            } else {
+                Err("插件连接失败".into())
+            };
 
             match result {
                 Ok(_) => {
@@ -348,7 +363,12 @@ impl PluginManager {
                 return Ok(format!("插件 {} 已经断开连接", instance.metadata.name));
             }
 
-            let result = unsafe { (*instance.handler).on_disconnect() };
+            let disconnect_result = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
+            let result: Result<(), Box<dyn std::error::Error>> = if disconnect_result == 0 {
+                Ok(())
+            } else {
+                Err("插件断开连接失败".into())
+            };
 
             instance.is_connected = false;
 
@@ -386,9 +406,21 @@ impl PluginManager {
             if let Some(instance) = instances.get(plugin_id) {
                 if instance.is_mounted {
                     unsafe {
-                        match (*instance.handler).handle_message(message) {
-                            Ok(response) => Ok(response),
-                            Err(e) => Err(format!("插件处理消息失败: {}", e))
+                        let message_cstr = CString::new(message).map_err(|_| "消息转换失败")?;
+                        let mut result_ptr: *mut c_char = std::ptr::null_mut();
+                        let handle_result = ((*instance.handler).handle_message)(
+                            (*instance.handler).plugin_ptr,
+                            message_cstr.as_ptr(),
+                            &mut result_ptr
+                        );
+
+                        if handle_result == 0 && !result_ptr.is_null() {
+                            let response = CStr::from_ptr(result_ptr).to_string_lossy().to_string();
+                            // 释放插件分配的内存
+                            let _ = CString::from_raw(result_ptr);
+                            Ok(response)
+                        } else {
+                            Err("插件处理消息失败".to_string())
                         }
                     }
                 } else {
@@ -421,12 +453,12 @@ impl PluginManager {
 
                     // 先断开连接
                     if instance.is_connected {
-                        let _ = unsafe { (*instance.handler).on_disconnect() };
+                        let _ = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
                         instance.is_connected = false;
                     }
 
                     // 调用 on_dispose
-                    let _ = unsafe { (*instance.handler).on_dispose() };
+                    let _ = unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
 
                     // 销毁插件实例
                     unsafe {
