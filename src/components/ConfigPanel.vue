@@ -29,6 +29,10 @@
         </el-option>
       </el-select>
 
+      <el-button type="primary" @click="handleReflash" :icon="Refresh" style="width: 100%; margin-bottom: 10px;">
+        刷新插件
+      </el-button>
+
       <!-- 这里可以添加其他配置项 -->
       <el-empty description="配置项待添加" :image-size="80" />
     </div>
@@ -47,13 +51,11 @@
 </template>
 
 <script setup lang="ts">
-import { Link, Close } from '@element-plus/icons-vue'
+import { Link, Close, Refresh } from '@element-plus/icons-vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { usePluginStore } from '@/stores/plugins'
-import { useMessageStore } from '@/stores/messages'
 
 const pluginStore = usePluginStore()
-const messageStore = useMessageStore()
 const selectedPluginId = ref<string>('')
 
 // 计算属性
@@ -85,6 +87,10 @@ const handleDisconnect = async () => {
   if (pluginStore.currentPluginId) {
     await pluginStore.disconnectPluginById(pluginStore.currentPluginId)
   }
+}
+
+const handleReflash = async () => {
+  pluginStore.loadPlugins()
 }
 
 // 组件挂载时加载插件列表

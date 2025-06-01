@@ -1,6 +1,6 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
-use log::{error, info, warn};
+use log::{error, info};
 use plugin_interface::{
     CreatePluginFn, DestroyPluginFn, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL,
     DESTROY_PLUGIN_SYMBOL, HostCallbacks,
@@ -52,45 +52,9 @@ impl PluginManager {
         GLOBAL_APP_HANDLE.set(self.app_handle.clone()).ok();
 
         HostCallbacks {
-            log_info: Self::host_log_info,
-            log_warn: Self::host_log_warn,
-            log_error: Self::host_log_error,
             send_to_frontend: Self::host_send_to_frontend,
             get_app_config: Self::host_get_app_config,
             call_other_plugin: Self::host_call_other_plugin,
-        }
-    }
-
-    /// 主程序日志记录函数 - Info
-    extern "C" fn host_log_info(message: *const c_char) {
-        if !message.is_null() {
-            unsafe {
-                if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    info!("[PLUGIN] {}", msg);
-                }
-            }
-        }
-    }
-
-    /// 主程序日志记录函数 - Warning
-    extern "C" fn host_log_warn(message: *const c_char) {
-        if !message.is_null() {
-            unsafe {
-                if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    warn!("[PLUGIN] {}", msg);
-                }
-            }
-        }
-    }
-
-    /// 主程序日志记录函数 - Error
-    extern "C" fn host_log_error(message: *const c_char) {
-        if !message.is_null() {
-            unsafe {
-                if let Ok(msg) = CStr::from_ptr(message).to_str() {
-                    error!("[PLUGIN] {}", msg);
-                }
-            }
         }
     }
 

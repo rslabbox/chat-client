@@ -5,10 +5,6 @@ use std::sync::OnceLock;
 /// 这些函数指针在插件加载时由主程序传递给插件
 #[repr(C)]
 pub struct HostCallbacks {
-    /// 日志记录函数
-    pub log_info: extern "C" fn(*const c_char),
-    pub log_warn: extern "C" fn(*const c_char),
-    pub log_error: extern "C" fn(*const c_char),
 
     /// 向前端发送消息
     pub send_to_frontend: extern "C" fn(*const c_char, *const c_char) -> bool,

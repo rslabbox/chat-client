@@ -20,7 +20,7 @@ impl PluginHandler for ExamplePlugin {
     fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>> {
         // 使用插件日志宏 - 现在会显示真实的文件名和行号
         log_info!(
-            "[{}] This log should show lib.rs:23 as the source location",
+            "[{}] Plugin mount successfully",
             self.name
         );
 
@@ -29,25 +29,25 @@ impl PluginHandler for ExamplePlugin {
 
     fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>> {
         log_info!(
-            "[{}] Plugin disposed successfully from lib.rs:35",
+            "[{}] Plugin disposed successfully",
             self.name
         );
         Ok(())
     }
 
     fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected from lib.rs:40", self.name);
+        log_info!("[{}] Connected from", self.name);
         Ok(())
     }
 
     fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected from lib.rs:45", self.name);
+        log_warn!("[{}] Disconnected from", self.name);
         Ok(())
     }
 
     fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
         log_info!(
-            "[{}] Received message: {} from lib.rs:50",
+            "[{}] Received message: {}",
             self.name,
             message
         );

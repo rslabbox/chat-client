@@ -4,13 +4,13 @@ pub mod plugins;
 
 // 导入所有 API 命令
 use api::{greet, scan_plugins, mount_plugin, dispose_plugin, connect_plugin, disconnect_plugin, get_plugin_status, get_current_plugin, send_message_to_plugin};
-use plugin_interface::log_info;
+
 use tauri::{RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 日志系统初始化完成
-    log_info!("日志系统初始化完成 {}", "111");
+    // log_info!("日志系统初始化完成 {}", "111");
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
