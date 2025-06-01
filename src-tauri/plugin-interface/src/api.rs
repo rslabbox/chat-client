@@ -1,0 +1,69 @@
+use std::ffi::CString;
+use crate::callbacks::get_host_callbacks;
+
+/// 便捷的日志记录函数（供插件使用）
+pub fn log_info(message: &str) {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let Ok(c_str) = CString::new(message) {
+            (callbacks.log_info)(c_str.as_ptr());
+        }
+    }
+}
+
+pub fn log_warn(message: &str) {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let Ok(c_str) = CString::new(message) {
+            (callbacks.log_warn)(c_str.as_ptr());
+        }
+    }
+}
+
+pub fn log_error(message: &str) {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let Ok(c_str) = CString::new(message) {
+            (callbacks.log_error)(c_str.as_ptr());
+        }
+    }
+}
+
+/// 向前端发送消息（供插件使用）
+pub fn send_to_frontend(event: &str, payload: &str) -> bool {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let (Ok(event_str), Ok(payload_str)) = (CString::new(event), CString::new(payload)) {
+            return (callbacks.send_to_frontend)(event_str.as_ptr(), payload_str.as_ptr());
+        }
+    }
+    false
+}
+
+/// 获取应用配置（供插件使用）
+pub fn get_app_config(key: &str) -> Option<String> {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let Ok(key_str) = CString::new(key) {
+            let result_ptr = (callbacks.get_app_config)(key_str.as_ptr());
+            if !result_ptr.is_null() {
+                unsafe {
+                    let c_str = std::ffi::CStr::from_ptr(result_ptr);
+                    return c_str.to_str().ok().map(|s| s.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 调用其他插件（供插件使用）
+pub fn call_other_plugin(plugin_id: &str, message: &str) -> Option<String> {
+    if let Some(callbacks) = get_host_callbacks() {
+        if let (Ok(id_str), Ok(msg_str)) = (CString::new(plugin_id), CString::new(message)) {
+            let result_ptr = (callbacks.call_other_plugin)(id_str.as_ptr(), msg_str.as_ptr());
+            if !result_ptr.is_null() {
+                unsafe {
+                    let c_str = std::ffi::CStr::from_ptr(result_ptr);
+                    return c_str.to_str().ok().map(|s| s.to_string());
+                }
+            }
+        }
+    }
+    None
+}

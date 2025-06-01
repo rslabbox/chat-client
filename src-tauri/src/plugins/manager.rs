@@ -2,10 +2,12 @@ use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interface::{
     CreatePluginFn, DestroyPluginFn, PluginHandler, PluginMetadata, CREATE_PLUGIN_SYMBOL,
-    DESTROY_PLUGIN_SYMBOL,
+    DESTROY_PLUGIN_SYMBOL, HostCallbacks,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 /// 插件实例信息
 #[derive(Debug)]
@@ -34,6 +36,104 @@ impl PluginManager {
             instances: Arc::new(Mutex::new(HashMap::new())),
             current_plugin: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// 创建主程序回调函数集合
+    fn create_host_callbacks(&self) -> HostCallbacks {
+        HostCallbacks {
+            log_info: Self::host_log_info,
+            log_warn: Self::host_log_warn,
+            log_error: Self::host_log_error,
+            send_to_frontend: Self::host_send_to_frontend,
+            get_app_config: Self::host_get_app_config,
+            call_other_plugin: Self::host_call_other_plugin,
+        }
+    }
+
+    /// 主程序日志记录函数 - Info
+    extern "C" fn host_log_info(message: *const c_char) {
+        if !message.is_null() {
+            unsafe {
+                if let Ok(msg) = CStr::from_ptr(message).to_str() {
+                    println!("[PLUGIN INFO] {}", msg);
+                }
+            }
+        }
+    }
+
+    /// 主程序日志记录函数 - Warning
+    extern "C" fn host_log_warn(message: *const c_char) {
+        if !message.is_null() {
+            unsafe {
+                if let Ok(msg) = CStr::from_ptr(message).to_str() {
+                    eprintln!("[PLUGIN WARN] {}", msg);
+                }
+            }
+        }
+    }
+
+    /// 主程序日志记录函数 - Error
+    extern "C" fn host_log_error(message: *const c_char) {
+        if !message.is_null() {
+            unsafe {
+                if let Ok(msg) = CStr::from_ptr(message).to_str() {
+                    eprintln!("[PLUGIN ERROR] {}", msg);
+                }
+            }
+        }
+    }
+
+    /// 向前端发送消息
+    extern "C" fn host_send_to_frontend(event: *const c_char, payload: *const c_char) -> bool {
+        if !event.is_null() && !payload.is_null() {
+            unsafe {
+                if let (Ok(event_str), Ok(payload_str)) = (
+                    CStr::from_ptr(event).to_str(),
+                    CStr::from_ptr(payload).to_str(),
+                ) {
+                    println!("[PLUGIN->FRONTEND] Event: {}, Payload: {}", event_str, payload_str);
+                    // TODO: 实现实际的Tauri事件发送
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// 获取应用配置
+    extern "C" fn host_get_app_config(key: *const c_char) -> *const c_char {
+        if !key.is_null() {
+            unsafe {
+                if let Ok(key_str) = CStr::from_ptr(key).to_str() {
+                    // TODO: 实现实际的配置获取逻辑
+                    let config_value = format!("config_value_for_{}", key_str);
+                    if let Ok(c_string) = CString::new(config_value) {
+                        return c_string.into_raw();
+                    }
+                }
+            }
+        }
+        std::ptr::null()
+    }
+
+    /// 调用其他插件
+    extern "C" fn host_call_other_plugin(plugin_id: *const c_char, message: *const c_char) -> *const c_char {
+        if !plugin_id.is_null() && !message.is_null() {
+            unsafe {
+                if let (Ok(id_str), Ok(msg_str)) = (
+                    CStr::from_ptr(plugin_id).to_str(),
+                    CStr::from_ptr(message).to_str(),
+                ) {
+                    println!("[PLUGIN->PLUGIN] {} -> {}", id_str, msg_str);
+                    // TODO: 实现实际的插件间通信逻辑
+                    let response = format!("response_from_{}", id_str);
+                    if let Ok(c_string) = CString::new(response) {
+                        return c_string.into_raw();
+                    }
+                }
+            }
+        }
+        std::ptr::null()
     }
 
     /// 扫描插件列表
@@ -90,6 +190,21 @@ impl PluginManager {
         let handler = unsafe { create_plugin() };
         if handler.is_null() {
             return Err("插件创建失败".to_string());
+        }
+
+        // 初始化插件（设置回调函数）
+        let callbacks = self.create_host_callbacks();
+        let init_result = unsafe { (*handler).initialize(callbacks) };
+        if let Err(e) = init_result {
+            // 清理失败的插件实例
+            unsafe {
+                let destroy_plugin: Result<Symbol<DestroyPluginFn>, _> =
+                    library.get(DESTROY_PLUGIN_SYMBOL);
+                if let Ok(destroy_fn) = destroy_plugin {
+                    destroy_fn(handler);
+                }
+            }
+            return Err(format!("插件初始化失败: {}", e));
         }
 
         // 调用 on_mount
