@@ -1,42 +1,152 @@
-/// 插件日志宏
-/// 提供方便的日志记录宏，自动通过回调函数发送到主程序的日志系统
+#[repr(u8)]
+#[allow(dead_code)]
+pub enum ColorCode {
+    Black = 30,
+    Red = 31,
+    Green = 32,
+    Yellow = 33,
+    Blue = 34,
+    Magenta = 35,
+    Cyan = 36,
+    White = 37,
+    BrightBlack = 90,
+    BrightRed = 91,
+    BrightGreen = 92,
+    BrightYellow = 93,
+    BrightBlue = 94,
+    BrightMagenta = 95,
+    BrightCyan = 96,
+    BrightWhite = 97,
+}
 
-/// 插件信息日志宏
-/// 使用方式: plugin_info!("消息内容")
-/// 或: plugin_info!("格式化消息: {}", value)
+#[allow(dead_code)]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl std::fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogLevel::Error => write!(f, "ERROR"),
+            LogLevel::Warn => write!(f, "WARN"),
+            LogLevel::Info => write!(f, "INFO"),
+            LogLevel::Debug => write!(f, "DEBUG"),
+            LogLevel::Trace => write!(f, "TRACE"),
+        }
+    }
+}
+
 #[macro_export]
-macro_rules! plugin_info {
-    ($($arg:tt)*) => {
-        $crate::log_info(&format!($($arg)*))
+macro_rules! with_color {
+    ($color_code:expr, $($arg:tt)*) => {{
+        format_args!("\u{1B}[{}m{}\u{1B}[m", $color_code as u8, format_args!($($arg)*))
+    }};
+}
+
+#[macro_export]
+macro_rules! host_log_print {
+    ($level:expr, $msg:expr) => {
+        {
+            let level_color = match $level {
+                $crate::LogLevel::Error => $crate::ColorCode::BrightRed,
+                $crate::LogLevel::Warn => $crate::ColorCode::BrightYellow,
+                $crate::LogLevel::Info => $crate::ColorCode::BrightGreen,
+                $crate::LogLevel::Debug => $crate::ColorCode::BrightCyan,
+                $crate::LogLevel::Trace => $crate::ColorCode::BrightBlack,
+            };
+            let args_color = match $level {
+                $crate::LogLevel::Error => $crate::ColorCode::Red,
+                $crate::LogLevel::Warn => $crate::ColorCode::Yellow,
+                $crate::LogLevel::Info => $crate::ColorCode::Green,
+                $crate::LogLevel::Debug => $crate::ColorCode::Cyan,
+                $crate::LogLevel::Trace => $crate::ColorCode::BrightBlack,
+            };
+            println!(
+                "[{} {} {}",
+                $crate::with_color!(level_color, "{:<5}", $level),
+                $crate::with_color!($crate::ColorCode::White, "{}:{}]", file!(), line!()),
+                $crate::with_color!(args_color, "{}", $msg)
+            );
+        }
+    };
+
+    ($level:expr, $fmt:expr, $($args:expr),*) => {
+        {
+            let level_color = match $level {
+                $crate::LogLevel::Error => $crate::ColorCode::BrightRed,
+                $crate::LogLevel::Warn => $crate::ColorCode::BrightYellow,
+                $crate::LogLevel::Info => $crate::ColorCode::BrightGreen,
+                $crate::LogLevel::Debug => $crate::ColorCode::BrightCyan,
+                $crate::LogLevel::Trace => $crate::ColorCode::BrightBlack,
+            };
+            let args_color = match $level {
+                $crate::LogLevel::Error => $crate::ColorCode::Red,
+                $crate::LogLevel::Warn => $crate::ColorCode::Yellow,
+                $crate::LogLevel::Info => $crate::ColorCode::Green,
+                $crate::LogLevel::Debug => $crate::ColorCode::Cyan,
+                $crate::LogLevel::Trace => $crate::ColorCode::BrightBlack,
+            };
+            let msg = format!($fmt, $($args),*);
+            println!(
+                "[{} {} {}",
+                $crate::with_color!(level_color, "{:<5}", $level),
+                $crate::with_color!($crate::ColorCode::White, "{}:{}]", file!(), line!()),
+                $crate::with_color!(args_color, "{}", msg)
+            );
+        }
     };
 }
 
-/// 插件警告日志宏
-/// 使用方式: plugin_warn!("警告消息")
-/// 或: plugin_warn!("格式化警告: {}", value)
 #[macro_export]
-macro_rules! plugin_warn {
-    ($($arg:tt)*) => {
-        $crate::log_warn(&format!($($arg)*))
+macro_rules! log_error {
+    ($fmt:expr) => {
+        $crate::host_log_print!($crate::LogLevel::Error, $fmt)
+    };
+    ($fmt:expr, $($args:expr),*) => {
+        $crate::host_log_print!($crate::LogLevel::Error, $fmt, $($args),*)
     };
 }
 
-/// 插件错误日志宏
-/// 使用方式: plugin_error!("错误消息")
-/// 或: plugin_error!("格式化错误: {}", value)
 #[macro_export]
-macro_rules! plugin_error {
-    ($($arg:tt)*) => {
-        $crate::log_error(&format!($($arg)*))
+macro_rules! log_warn {
+    ($fmt:expr) => {
+        $crate::host_log_print!($crate::LogLevel::Warn, $fmt)
+    };
+    ($fmt:expr, $($args:expr),*) => {
+        $crate::host_log_print!($crate::LogLevel::Warn, $fmt, $($args),*)
     };
 }
 
-/// 插件调试日志宏（如果需要的话）
-/// 注意：需要在 api.rs 中添加对应的 log_debug 函数
 #[macro_export]
-macro_rules! plugin_debug {
-    ($($arg:tt)*) => {
-        // 暂时使用 info 级别，后续可以添加 debug 级别支持
-        $crate::log_info(&format!("[DEBUG] {}", format!($($arg)*)))
+macro_rules! log_info {
+    ($fmt:expr) => {
+        $crate::host_log_print!($crate::LogLevel::Debug, $fmt)
+    };
+    ($fmt:expr, $($args:expr),*) => {
+        $crate::host_log_print!($crate::LogLevel::Debug, $fmt, $($args),*)
+    };
+}
+
+#[macro_export]
+macro_rules! log_debug {
+    ($fmt:expr) => {
+        $crate::host_log_print!($crate::LogLevel::Debug, $fmt)
+    };
+    ($fmt:expr, $($args:expr),*) => {
+        $crate::host_log_print!($crate::LogLevel::Debug, $fmt, $($args),*)
+    };
+}
+
+#[macro_export]
+macro_rules! log_trace {
+    ($fmt:expr) => {
+        $crate::host_log_print!($crate::LogLevel::Trace, $fmt)
+    };
+    ($fmt:expr, $($args:expr),*) => {
+        $crate::host_log_print!($crate::LogLevel::Trace, $fmt, $($args),*)
     };
 }

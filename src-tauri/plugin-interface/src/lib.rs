@@ -12,4 +12,5 @@ pub use callbacks::*;
 pub use api::*;
 pub use handler::*;
 pub use symbols::*;
+pub use logging::*;
 // 注意：logging 模块导出的是宏，不需要在这里重新导出

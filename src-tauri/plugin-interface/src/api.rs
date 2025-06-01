@@ -1,31 +1,6 @@
 use std::ffi::CString;
 use crate::callbacks::get_host_callbacks;
 
-/// 便捷的日志记录函数（供插件使用）
-pub fn log_info(message: &str) {
-    if let Some(callbacks) = get_host_callbacks() {
-        if let Ok(c_str) = CString::new(message) {
-            (callbacks.log_info)(c_str.as_ptr());
-        }
-    }
-}
-
-pub fn log_warn(message: &str) {
-    if let Some(callbacks) = get_host_callbacks() {
-        if let Ok(c_str) = CString::new(message) {
-            (callbacks.log_warn)(c_str.as_ptr());
-        }
-    }
-}
-
-pub fn log_error(message: &str) {
-    if let Some(callbacks) = get_host_callbacks() {
-        if let Ok(c_str) = CString::new(message) {
-            (callbacks.log_error)(c_str.as_ptr());
-        }
-    }
-}
-
 /// 向前端发送消息（供插件使用）
 pub fn send_to_frontend(event: &str, payload: &str) -> bool {
     if let Some(callbacks) = get_host_callbacks() {

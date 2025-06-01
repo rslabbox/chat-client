@@ -1,6 +1,6 @@
 use plugin_interface::{
-    get_app_config, plugin_info, plugin_warn, PluginHandler, PluginMetadata, PluginInterface,
-    create_plugin_interface_from_handler,
+    create_plugin_interface_from_handler, log_info, log_warn, PluginHandler, PluginInterface,
+    PluginMetadata,
 };
 
 /// 示例插件实现
@@ -18,34 +18,39 @@ impl ExamplePlugin {
 
 impl PluginHandler for ExamplePlugin {
     fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // 使用插件日志宏
-        plugin_info!("[{}] Plugin mounted successfully", self.name);
-
-        // 获取应用配置示例
-        if let Some(config) = get_app_config("app_version") {
-            plugin_info!("[{}] App version: {}", self.name, config);
-        }
+        // 使用插件日志宏 - 现在会显示真实的文件名和行号
+        log_info!(
+            "[{}] This log should show lib.rs:23 as the source location",
+            self.name
+        );
 
         Ok(())
     }
 
     fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>> {
-        plugin_info!("[{}] Plugin disposed successfully", self.name);
+        log_info!(
+            "[{}] Plugin disposed successfully from lib.rs:35",
+            self.name
+        );
         Ok(())
     }
 
     fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        plugin_info!("[{}] Connected", self.name);
+        log_info!("[{}] Connected from lib.rs:40", self.name);
         Ok(())
     }
 
     fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        plugin_warn!("[{}] Disconnected", self.name);
+        log_warn!("[{}] Disconnected from lib.rs:45", self.name);
         Ok(())
     }
 
     fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
-        plugin_info!("[{}] Received message: {}", self.name, message);
+        log_info!(
+            "[{}] Received message: {} from lib.rs:50",
+            self.name,
+            message
+        );
 
         let response = format!("Echo from {}: {}", self.name, message);
 
