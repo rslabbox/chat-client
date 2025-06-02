@@ -124,10 +124,10 @@ macro_rules! log_warn {
 #[macro_export]
 macro_rules! log_info {
     ($fmt:expr) => {
-        $crate::host_log_print!($crate::LogLevel::Debug, $fmt)
+        $crate::host_log_print!($crate::LogLevel::Info, $fmt)
     };
     ($fmt:expr, $($args:expr),*) => {
-        $crate::host_log_print!($crate::LogLevel::Debug, $fmt, $($args),*)
+        $crate::host_log_print!($crate::LogLevel::Info, $fmt, $($args),*)
     };
 }
 

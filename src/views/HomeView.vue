@@ -1,40 +1,50 @@
 <template>
   <div class="app-container">
-    <!-- 左侧配置面板 -->
-    <div 
-      ref="leftPanel" 
-      class="left-panel"
-      :style="{ width: leftPanelWidth + 'px' }"
-    >
-      <ConfigPanel />
+    <!-- 顶部导航 -->
+    <div class="top-nav">
+      <el-button type="primary" @click="$router.push('/test')">
+        插件UI测试
+      </el-button>
     </div>
 
-    <!-- 垂直分割线 -->
-    <div 
-      class="vertical-divider" 
-      @mousedown="startVerticalResize"
-    ></div>
-
-    <!-- 右侧消息区域 -->
-    <div class="right-panel">
-      <!-- 上半部分：消息显示区 -->
+    <!-- 主要内容区域 -->
+    <div class="main-content">
+      <!-- 左侧配置面板 -->
       <div
-        ref="messageDisplay"
-        class="message-display"
-        :style="{ height: messageDisplayHeight + 'px' }"
+        ref="leftPanel"
+        class="left-panel"
+        :style="{ width: leftPanelWidth + 'px' }"
       >
-        <MessageDisplay/>
+        <ConfigPanel />
       </div>
 
-      <!-- 水平分割线 -->
-      <div 
-        class="horizontal-divider" 
-        @mousedown="startHorizontalResize"
+      <!-- 垂直分割线 -->
+      <div
+        class="vertical-divider"
+        @mousedown="startVerticalResize"
       ></div>
 
-      <!-- 下半部分：消息发送区 -->
-      <div class="message-input">
-        <MessageInput/>
+      <!-- 右侧消息区域 -->
+      <div class="right-panel">
+        <!-- 上半部分：消息显示区 -->
+        <div
+          ref="messageDisplay"
+          class="message-display"
+          :style="{ height: messageDisplayHeight + 'px' }"
+        >
+          <MessageDisplay/>
+        </div>
+
+        <!-- 水平分割线 -->
+        <div
+          class="horizontal-divider"
+          @mousedown="startHorizontalResize"
+        ></div>
+
+        <!-- 下半部分：消息发送区 -->
+        <div class="message-input">
+          <MessageInput/>
+        </div>
       </div>
     </div>
   </div>
@@ -142,6 +152,7 @@ onMounted(() => {
 <style scoped>
 .app-container {
   display: flex;
+  flex-direction: column;
   height: 100vh;  /* 使用视口高度 */
   width: 100vw;   /* 使用视口宽度 */
   background-color: #f5f5f5;
@@ -150,6 +161,22 @@ onMounted(() => {
   position: fixed;
   top: 0;
   left: 0;
+}
+
+.top-nav {
+  height: 50px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .left-panel {

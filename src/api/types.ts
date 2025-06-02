@@ -13,3 +13,6 @@ export interface PluginMetadata {
   library_path?: string  // 动态库文件路径
   config_path: string    // 配置文件路径
 }
+
+// 重新导出插件UI相关类型
+export * from './plugin-ui-types'

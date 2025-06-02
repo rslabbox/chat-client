@@ -1,9 +1,7 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
-use log::{error, info};
 use plugin_interface::{
-    CreatePluginFn, DestroyPluginFn, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL,
-    DESTROY_PLUGIN_SYMBOL, HostCallbacks,
+    log_error, log_info, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -74,11 +72,11 @@ impl PluginManager {
                                 return true;
                             }
                             Err(e) => {
-                                error!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
+                                log_error!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
                             }
                         }
                     } else {
-                        error!("[PLUGIN->FRONTEND] AppHandle not available");
+                        log_error!("[PLUGIN->FRONTEND] AppHandle not available");
                     }
                 }
             }
@@ -137,7 +135,7 @@ impl PluginManager {
         if let Some(current_id) = current_plugin_id {
             if current_id != plugin_id {
                 if let Err(e) = self.dispose_plugin(&current_id) {
-                    error!("Failed to dispose current plugin: {}", e);
+                    log_error!("Failed to dispose current plugin: {}", e);
                 }
             }
         }
@@ -398,6 +396,73 @@ impl PluginManager {
         }
     }
 
+    /// 获取插件UI定义
+    pub fn get_plugin_ui(&self, plugin_id: &str) -> Result<String, String> {
+        let instances = self.instances.lock().unwrap();
+
+        if let Some(instance) = instances.get(plugin_id) {
+            if instance.is_mounted {
+                unsafe {
+                    let mut ui_json_ptr: *mut c_char = std::ptr::null_mut();
+                    let result = ((*instance.handler).get_ui)(
+                        (*instance.handler).plugin_ptr,
+                        &mut ui_json_ptr
+                    );
+
+                    if result == 0 && !ui_json_ptr.is_null() {
+                        let ui_json = CStr::from_ptr(ui_json_ptr).to_string_lossy().to_string();
+                        // 释放插件分配的内存
+                        let _ = CString::from_raw(ui_json_ptr);
+                        Ok(ui_json)
+                    } else {
+                        Err("获取插件UI失败".to_string())
+                    }
+                }
+            } else {
+                Err("插件未挂载".to_string())
+            }
+        } else {
+            Err("插件未找到".to_string())
+        }
+    }
+
+    /// 处理插件UI事件
+    pub fn handle_plugin_ui_event(&self, plugin_id: &str, component_id: &str, value: &str) -> Result<bool, String> {
+        let instances = self.instances.lock().unwrap();
+
+        if let Some(instance) = instances.get(plugin_id) {
+            if instance.is_mounted {
+                unsafe {
+                    let component_id_cstr = CString::new(component_id).map_err(|_| "组件ID转换失败")?;
+                    let value_cstr = CString::new(value).map_err(|_| "值转换失败")?;
+
+                    let result = ((*instance.handler).handle_ui_event)(
+                        (*instance.handler).plugin_ptr,
+                        component_id_cstr.as_ptr(),
+                        value_cstr.as_ptr()
+                    );
+
+                    Ok(result != 0)
+                }
+            } else {
+                Err("插件未挂载".to_string())
+            }
+        } else {
+            Err("插件未找到".to_string())
+        }
+    }
+
+    /// 通知插件UI更新
+    pub fn notify_plugin_ui_update(&self, plugin_id: &str) -> Result<(), String> {
+        // 向前端发送UI更新事件
+        if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
+            let payload = format!("{{\"plugin\": \"{}\"}}", plugin_id);
+            app_handle.emit("plugin-ui-updated", &payload)
+                .map_err(|e| format!("发送UI更新事件失败: {}", e))?;
+        }
+        Ok(())
+    }
+
     /// 清理所有已挂载的插件（应用关闭时调用）
     pub fn cleanup_all_plugins(&self) {
         let mut instances = self.instances.lock().unwrap();
@@ -413,7 +478,7 @@ impl PluginManager {
         for plugin_id in mounted_plugin_ids {
             if let Some(instance) = instances.get_mut(&plugin_id) {
                 if instance.is_mounted {
-                    info!("正在清理插件: {}", instance.metadata.name);
+                    log_info!("正在清理插件: {}", instance.metadata.name);
 
                     // 先断开连接
                     if instance.is_connected {
@@ -434,7 +499,7 @@ impl PluginManager {
                     }
 
                     instance.is_mounted = false;
-                    info!("插件 {} 清理完成", instance.metadata.name);
+                    log_info!("插件 {} 清理完成", instance.metadata.name);
                 }
             }
         }
@@ -442,7 +507,7 @@ impl PluginManager {
         // 清除当前插件状态
         *self.current_plugin.lock().unwrap() = None;
 
-        info!("所有插件清理完成");
+        log_info!("所有插件清理完成");
     }
 
     /// 查找插件元数据

@@ -72,6 +72,20 @@ pub fn send_message_to_plugin(message: String) -> Result<String, String> {
     manager.send_message_to_current_plugin(&message)
 }
 
+/// 获取插件UI定义
+#[tauri::command]
+pub fn get_plugin_ui(plugin_id: String) -> Result<String, String> {
+    let manager = get_plugin_manager()?;
+    manager.get_plugin_ui(&plugin_id)
+}
+
+/// 处理插件UI事件
+#[tauri::command]
+pub fn handle_plugin_ui_event(plugin_id: String, component_id: String, value: String) -> Result<bool, String> {
+    let manager = get_plugin_manager()?;
+    manager.handle_plugin_ui_event(&plugin_id, &component_id, &value)
+}
+
 /// 清理所有插件（应用关闭时调用）
 pub fn cleanup_all_plugins() {
     if let Ok(manager) = get_plugin_manager() {

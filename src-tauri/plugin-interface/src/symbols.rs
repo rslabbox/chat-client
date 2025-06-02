@@ -14,6 +14,8 @@ pub struct PluginInterface {
     pub on_disconnect: unsafe extern "C" fn(*mut std::ffi::c_void) -> i32,
     pub handle_message: unsafe extern "C" fn(*mut std::ffi::c_void, *const c_char, *mut *mut c_char) -> i32,
     pub get_metadata: unsafe extern "C" fn(*mut std::ffi::c_void) -> PluginMetadataFFI,
+    pub get_ui: unsafe extern "C" fn(*mut std::ffi::c_void, *mut *mut c_char) -> i32,
+    pub handle_ui_event: unsafe extern "C" fn(*mut std::ffi::c_void, *const c_char, *const c_char) -> i32,
     pub destroy: unsafe extern "C" fn(*mut std::ffi::c_void),
 }
 
@@ -103,6 +105,40 @@ pub fn create_plugin_interface_from_handler(
         metadata.to_ffi()
     }
 
+    unsafe extern "C" fn get_ui_wrapper(
+        ptr: *mut std::ffi::c_void,
+        result: *mut *mut c_char
+    ) -> i32 {
+        let handler = &*(ptr as *mut Box<dyn crate::handler::PluginHandler>);
+        let ui = handler.get_ui();
+        let ui_guard = ui.lock().unwrap();
+
+        match serde_json::to_string(&ui_guard.get_components()) {
+            Ok(json) => {
+                let json_cstring = CString::new(json).unwrap();
+                *result = json_cstring.into_raw();
+                0
+            }
+            Err(_) => -1,
+        }
+    }
+
+    unsafe extern "C" fn handle_ui_event_wrapper(
+        ptr: *mut std::ffi::c_void,
+        component_id: *const c_char,
+        value: *const c_char
+    ) -> i32 {
+        let handler = &*(ptr as *mut Box<dyn crate::handler::PluginHandler>);
+        let component_id_str = CStr::from_ptr(component_id).to_string_lossy();
+        let value_str = CStr::from_ptr(value).to_string_lossy();
+
+        if handler.handle_ui_event(&component_id_str, &value_str) {
+            1
+        } else {
+            0
+        }
+    }
+
     unsafe extern "C" fn destroy_wrapper(ptr: *mut std::ffi::c_void) {
         let _ = Box::from_raw(ptr as *mut Box<dyn crate::handler::PluginHandler>);
     }
@@ -116,6 +152,8 @@ pub fn create_plugin_interface_from_handler(
         on_disconnect: on_disconnect_wrapper,
         handle_message: handle_message_wrapper,
         get_metadata: get_metadata_wrapper,
+        get_ui: get_ui_wrapper,
+        handle_ui_event: handle_ui_event_wrapper,
         destroy: destroy_wrapper,
     };
 

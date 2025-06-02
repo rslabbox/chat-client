@@ -33,8 +33,8 @@
         刷新插件
       </el-button>
 
-      <!-- 这里可以添加其他配置项 -->
-      <el-empty description="配置项待添加" :image-size="80" />
+      <!-- 插件UI组件 -->
+      <PluginUI :plugin-id="pluginStore.currentPluginId || undefined" />
     </div>
 
     <div class="config-footer">
@@ -54,6 +54,7 @@
 import { Link, Close, Refresh } from '@element-plus/icons-vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { usePluginStore } from '@/stores/plugins'
+import PluginUI from './PluginUI.vue'
 
 const pluginStore = usePluginStore()
 const selectedPluginId = ref<string>('')
@@ -90,6 +91,7 @@ const handleDisconnect = async () => {
 }
 
 const handleReflash = async () => {
+  
   pluginStore.loadPlugins()
 }
 
