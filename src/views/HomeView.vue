@@ -1,15 +1,28 @@
 <template>
   <div class="app-container">
+    <!-- 顶部工具栏 -->
+    <PluginToolbar />
 
     <!-- 主要内容区域 -->
     <div class="main-content">
       <!-- 左侧配置面板 -->
-      <div ref="leftPanel" class="left-panel" :style="{ width: leftPanelWidth + 'px' }">
-        <ConfigPanel />
+      <div
+        ref="leftPanel"
+        class="left-panel"
+        :class="{ 'panel-hidden': !settingsStore.leftPanelVisible }"
+        :style="{ width: settingsStore.leftPanelVisible ? leftPanelWidth + 'px' : '0px' }"
+      >
+        <div class="panel-content" v-show="settingsStore.leftPanelVisible">
+          <ConfigPanel />
+        </div>
       </div>
 
       <!-- 垂直分割线 -->
-      <div class="vertical-divider" @mousedown="startVerticalResize"></div>
+      <div
+        class="vertical-divider"
+        v-show="settingsStore.leftPanelVisible"
+        @mousedown="startVerticalResize"
+      ></div>
 
       <!-- 右侧消息区域 -->
       <div class="right-panel">
@@ -32,9 +45,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
+import PluginToolbar from '../components/PluginToolbar.vue'
 import ConfigPanel from '../components/ConfigPanel.vue'
 import MessageDisplay from '../components/MessageDisplay.vue'
 import MessageInput from '../components/MessageInput.vue'
+
+const settingsStore = useSettingsStore()
 
 // 响应式数据
 const leftPanelWidth = ref(300) // 左侧面板宽度，默认占1/4
@@ -164,6 +181,18 @@ onMounted(() => {
   border-right: 1px solid #e4e7ed;
   min-width: 200px;
   max-width: 50vw;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.left-panel.panel-hidden {
+  min-width: 0;
+  border-right: none;
+}
+
+.panel-content {
+  width: 100%;
+  height: 100%;
 }
 
 .vertical-divider {
