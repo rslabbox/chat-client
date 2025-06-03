@@ -2,14 +2,14 @@
   <div class="message-display">
     <div class="message-header">
       <h3>消息记录</h3>
-      <el-button 
-        type="danger" 
+      <el-button
+        type="primary"
         size="small"
-        @click="handleClear"
-        :icon="Delete"
+        @click="handleNewChat"
+        :icon="Plus"
         plain
       >
-        清空消息
+        新的聊天
       </el-button>
     </div>
     
@@ -40,7 +40,8 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Delete } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useMessageStore } from '@/stores/messages'
 
 const messageStore = useMessageStore()
@@ -56,8 +57,13 @@ const formatTime = (date: Date) => {
   })
 }
 
-const handleClear = () => {
-  messageStore.clearPluginMessages()
+const handleNewChat = () => {
+  const newSession = messageStore.createNewSession()
+  if (newSession) {
+    ElMessage.success('已创建新的聊天')
+  } else {
+    ElMessage.error('创建聊天失败')
+  }
 }
 
 const scrollToBottom = () => {

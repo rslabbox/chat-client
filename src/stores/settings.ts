@@ -52,6 +52,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // UI状态
   const leftPanelVisible = ref(true)
+  const rightPanelVisible = ref(true)
 
   // 本地存储键名
   const STORAGE_KEY = 'chat-client-settings'
@@ -193,6 +194,16 @@ export const useSettingsStore = defineStore('settings', () => {
     leftPanelVisible.value = visible
   }
 
+  // 切换右侧面板显示状态
+  const toggleRightPanel = () => {
+    rightPanelVisible.value = !rightPanelVisible.value
+  }
+
+  // 设置右侧面板显示状态
+  const setRightPanelVisible = (visible: boolean) => {
+    rightPanelVisible.value = visible
+  }
+
   // 初始化设置
   const initializeSettings = async () => {
     await loadSettings()
@@ -214,6 +225,7 @@ export const useSettingsStore = defineStore('settings', () => {
     settings,
     isLoading,
     leftPanelVisible,
+    rightPanelVisible,
 
     // 方法
     loadSettings,
@@ -227,5 +239,7 @@ export const useSettingsStore = defineStore('settings', () => {
     initializeSettings,
     toggleLeftPanel,
     setLeftPanelVisible,
+    toggleRightPanel,
+    setRightPanelVisible,
   }
 })

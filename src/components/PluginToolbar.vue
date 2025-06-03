@@ -46,8 +46,16 @@
         </div>
       </div>
 
-      <!-- 右侧：系统设置按钮 -->
+      <!-- 右侧：历史记录面板切换和系统设置按钮 -->
       <div class="right-section">
+        <el-button
+          type="default"
+          @click="handleToggleRightPanel"
+          :icon="settingsStore.rightPanelVisible ? ArrowRight : ArrowLeft"
+          size="small"
+          circle
+          :title="settingsStore.rightPanelVisible ? '收起历史记录' : '展开历史记录'"
+        />
         <el-button
           type="default"
           @click="handleSettings"
@@ -100,9 +108,14 @@ const handleSettings = () => {
   showSettings.value = true
 }
 
-// 处理面板切换
+// 处理左侧面板切换
 const handleTogglePanel = () => {
   settingsStore.toggleLeftPanel()
+}
+
+// 处理右侧面板切换
+const handleToggleRightPanel = () => {
+  settingsStore.toggleRightPanel()
 }
 
 // 组件挂载时加载插件列表
@@ -136,6 +149,7 @@ onMounted(() => {
 .right-section {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .plugin-selector {
