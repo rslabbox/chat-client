@@ -54,6 +54,27 @@ impl PluginUi {
         }))
     }
 
+    /// 创建新的UI容器并自动设置更新回调
+    pub fn new_with_plugin_id(plugin_id: &str) -> Arc<Mutex<Self>> {
+        let ui = Arc::new(Mutex::new(Self {
+            components: Vec::new(),
+            actions: HashMap::new(),
+            on_update: None,
+        }));
+
+        // 自动设置UI更新回调
+        let plugin_id = plugin_id.to_string();
+        {
+            let mut ui_guard = ui.lock().unwrap();
+            ui_guard.set_update_callback(move || {
+                // 当UI状态更新时，发送事件到前端
+                crate::api::send_to_frontend("plugin-ui-updated", &format!(r#"{{"plugin": "{}"}}"#, plugin_id));
+            });
+        }
+
+        ui
+    }
+
     /// 设置UI更新回调
     pub fn set_update_callback<F>(&mut self, callback: F)
     where
@@ -69,9 +90,14 @@ impl PluginUi {
         }
     }
 
-    /// 查找组件
+    /// 查找组件（可变引用）
     pub(crate) fn find_component_mut(&mut self, id: &str) -> Option<&mut Component> {
         self.components.iter_mut().find(|c| c.id == id)
+    }
+
+    /// 查找组件（不可变引用）
+    pub(crate) fn find_component(&self, id: &str) -> Option<&Component> {
+        self.components.iter().find(|c| c.id == id)
     }
 
     /// 处理UI事件

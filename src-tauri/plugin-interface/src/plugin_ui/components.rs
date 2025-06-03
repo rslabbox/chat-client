@@ -4,6 +4,17 @@
 
 use serde::{Deserialize, Serialize};
 
+/// 容器布局类型
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ContainerLayout {
+    /// 水平布局（行）
+    Horizontal,
+    /// 垂直布局（列）
+    Vertical,
+    /// 网格布局
+    Grid { columns: u32 },
+}
+
 /// UI组件类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -20,6 +31,19 @@ pub enum ComponentType {
         value: String,
         #[serde(skip)]
         action_id: String,
+    },
+    Text {
+        value: String,
+    },
+    Select {
+        options: Vec<String>,
+        selected: Option<String>,
+        #[serde(skip)]
+        action_id: String,
+    },
+    Container {
+        layout: ContainerLayout,
+        children: Vec<Component>,
     },
     // 可以扩展更多组件类型
 }

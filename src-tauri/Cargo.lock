@@ -935,6 +935,7 @@ dependencies = [
  "plugin-interface",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]

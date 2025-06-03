@@ -38,7 +38,7 @@
         >
           {{ component.component.label }}
         </el-button>
-        
+
         <!-- 文本输入框组件 -->
         <el-input
           v-else-if="component.component.type === 'TextField'"
@@ -49,6 +49,57 @@
           style="margin-bottom: 10px;"
         >
         </el-input>
+
+        <!-- 文本显示组件 -->
+        <div
+          v-else-if="component.component.type === 'Text'"
+          class="text-component"
+          style="margin-bottom: 10px;"
+        >
+          {{ component.component.value }}
+        </div>
+
+        <!-- 下拉选择框组件 -->
+        <el-select
+          v-else-if="component.component.type === 'Select'"
+          v-model="selectValues[component.id]"
+          placeholder="请选择"
+          @change="handleSelectChange(component.id, $event)"
+          style="width: 100%; margin-bottom: 10px;"
+        >
+          <el-option
+            v-for="option in component.component.options"
+            :key="option"
+            :label="option"
+            :value="option"
+          />
+        </el-select>
+
+        <!-- 容器组件 -->
+        <div
+          v-else-if="component.component.type === 'Container'"
+          class="container-component"
+          :class="getContainerClass(component.component.layout)"
+          :style="getContainerStyle(component.component.layout)"
+          style="margin-bottom: 10px;"
+        >
+          <div
+            v-for="(child, index) in component.component.children"
+            :key="child.id"
+            class="container-child"
+            :style="getChildStyle(component.component.layout, index)"
+          >
+            <ComponentRenderer
+              :component="child"
+              :plugin-id="pluginId"
+              :text-field-values="textFieldValues"
+              :select-values="selectValues"
+              @button-click="handleButtonClick"
+              @textfield-submit="handleTextFieldSubmit"
+              @select-change="handleSelectChange"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -59,7 +110,8 @@ import { ref, watch, onMounted, onUnmounted, reactive } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { Refresh, Search, Setting } from '@element-plus/icons-vue'
 import { getPluginUi, handlePluginUiEvent } from '@/api/plugin-ui'
-import type { Component } from '@/api/types'
+import type { Component, ContainerLayout } from '@/api/types'
+import ComponentRenderer from './ComponentRenderer.vue'
 
 // Props
 interface Props {
@@ -73,6 +125,7 @@ const uiComponents = ref<Component[]>([])
 const loading = ref(false)
 const error = ref<string>('')
 const textFieldValues = reactive<Record<string, string>>({})
+const selectValues = reactive<Record<string, string>>({})
 
 // 事件监听器
 let unlistenPluginUiUpdate: UnlistenFn | null = null
@@ -87,6 +140,60 @@ const getIcon = (iconName?: string) => {
   return iconName ? iconMap[iconName] : undefined
 }
 
+// 获取容器CSS类
+const getContainerClass = (layout: ContainerLayout) => {
+  if (layout === 'Horizontal') {
+    return 'container-horizontal'
+  } else if (layout === 'Vertical') {
+    return 'container-vertical'
+  } else if (typeof layout === 'object' && 'Grid' in layout) {
+    return 'container-grid'
+  }
+  return ''
+}
+
+// 获取容器样式
+const getContainerStyle = (layout: ContainerLayout) => {
+  if (layout === 'Horizontal') {
+    return {
+      display: 'flex',
+      flexDirection: 'row',
+      gap: '10px',
+      alignItems: 'stretch'
+    }
+  } else if (layout === 'Vertical') {
+    return {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px'
+    }
+  } else if (typeof layout === 'object' && 'Grid' in layout) {
+    return {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${layout.Grid.columns}, 1fr)`,
+      gap: '10px'
+    }
+  }
+  return {}
+}
+
+// 获取子组件样式
+const getChildStyle = (layout: ContainerLayout, _index: number) => {
+  if (layout === 'Horizontal') {
+    return {
+      flex: '1',
+      minWidth: '0' // 防止flex子项溢出
+    }
+  } else if (layout === 'Vertical') {
+    return {
+      width: '100%'
+    }
+  } else if (typeof layout === 'object' && 'Grid' in layout) {
+    return {}
+  }
+  return {}
+}
+
 // 加载插件UI
 const loadPluginUI = async (pluginId: string) => {
   if (!pluginId) {
@@ -99,13 +206,16 @@ const loadPluginUI = async (pluginId: string) => {
   
   try {
     const ui = await getPluginUi(pluginId)
-    console.log(ui)
+    console.log('插件UI数据:', ui)
+
     uiComponents.value = ui
     
-    // 初始化文本框的值
+    // 初始化文本框和下拉选择框的值
     ui.forEach(component => {
       if (component.component.type === 'TextField') {
         textFieldValues[component.id] = component.component.value || ''
+      } else if (component.component.type === 'Select') {
+        selectValues[component.id] = component.component.selected || ''
       }
     })
     
@@ -139,9 +249,9 @@ const handleButtonClick = async (componentId: string) => {
 // 处理文本框提交
 const handleTextFieldSubmit = async (componentId: string) => {
   if (!props.pluginId) return
-  
+
   const value = textFieldValues[componentId] || ''
-  
+
   try {
     const success = await handlePluginUiEvent(props.pluginId, componentId, value)
     if (success) {
@@ -156,6 +266,22 @@ const handleTextFieldSubmit = async (componentId: string) => {
   }
 }
 
+// 处理下拉选择框变化
+const handleSelectChange = async (componentId: string, value: string) => {
+  if (!props.pluginId) return
+
+  try {
+    const success = await handlePluginUiEvent(props.pluginId, componentId, value)
+    if (success) {
+      console.log('下拉选择框变化事件处理成功:', value)
+    } else {
+      console.warn('下拉选择框变化事件处理失败')
+    }
+  } catch (err) {
+    console.error('处理下拉选择框变化事件失败:', err)
+  }
+}
+
 // 监听插件ID变化
 watch(() => props.pluginId, (newPluginId) => {
   if (newPluginId) {
@@ -164,6 +290,9 @@ watch(() => props.pluginId, (newPluginId) => {
     uiComponents.value = []
     Object.keys(textFieldValues).forEach(key => {
       delete textFieldValues[key]
+    })
+    Object.keys(selectValues).forEach(key => {
+      delete selectValues[key]
     })
   }
 }, { immediate: true })
@@ -208,5 +337,20 @@ onUnmounted(() => {
 
 .ui-component {
   width: 100%;
+}
+
+.text-component {
+  padding: 6px 12px;
+  background-color: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  min-height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
 }
 </style>

@@ -3,7 +3,7 @@
  */
 
 // UI组件类型枚举
-export type ComponentType = 
+export type ComponentType =
   | {
       type: 'Button'
       label: string
@@ -15,6 +15,26 @@ export type ComponentType =
       hint: string
       value: string
     }
+  | {
+      type: 'Text'
+      value: string
+    }
+  | {
+      type: 'Select'
+      options: string[]
+      selected?: string
+    }
+  | {
+      type: 'Container'
+      layout: ContainerLayout
+      children: Component[]
+    }
+
+// 容器布局类型
+export type ContainerLayout =
+  | 'Horizontal'
+  | 'Vertical'
+  | { Grid: { columns: number } }
 
 // 单个UI组件
 export interface Component {

@@ -7,7 +7,11 @@ mod component_ref;
 mod plugin_ui;
 mod builders;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export public types
-pub use components::{ComponentType, Component};
-pub use component_ref::ComponentRef;
+pub use components::{ComponentType, Component, ContainerLayout};
+pub use component_ref::{ComponentRef, ButtonRef, TextFieldRef, TextRef, SelectRef, ContainerRef};
+pub use builders::{ContainerBuilder, NestedContainerBuilder};
 pub use plugin_ui::PluginUi;
