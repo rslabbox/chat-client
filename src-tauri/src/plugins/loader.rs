@@ -102,16 +102,16 @@ impl PluginLoader {
             return Some(direct_path.to_string_lossy().to_string());
         }
 
-        // 在插件目录的 target/release 目录中查找（开发环境）
-        let target_path = plugin_dir.join("target").join("release").join(library_name);
-        if target_path.exists() {
-            return Some(target_path.to_string_lossy().to_string());
-        }
-
         // 在插件目录的 target/debug 目录中查找（开发环境）
         let debug_path = plugin_dir.join("target").join("debug").join(library_name);
         if debug_path.exists() {
             return Some(debug_path.to_string_lossy().to_string());
+        }
+
+        // 在插件目录的 target/release 目录中查找（开发环境）
+        let target_path = plugin_dir.join("target").join("release").join(library_name);
+        if target_path.exists() {
+            return Some(target_path.to_string_lossy().to_string());
         }
 
         // 在工作空间的 target/release 目录中查找

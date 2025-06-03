@@ -1,49 +1,29 @@
 <template>
   <div class="app-container">
-    <!-- 顶部导航 -->
-    <div class="top-nav">
-      <el-button type="primary" @click="$router.push('/test')">
-        插件UI测试
-      </el-button>
-    </div>
 
     <!-- 主要内容区域 -->
     <div class="main-content">
       <!-- 左侧配置面板 -->
-      <div
-        ref="leftPanel"
-        class="left-panel"
-        :style="{ width: leftPanelWidth + 'px' }"
-      >
+      <div ref="leftPanel" class="left-panel" :style="{ width: leftPanelWidth + 'px' }">
         <ConfigPanel />
       </div>
 
       <!-- 垂直分割线 -->
-      <div
-        class="vertical-divider"
-        @mousedown="startVerticalResize"
-      ></div>
+      <div class="vertical-divider" @mousedown="startVerticalResize"></div>
 
       <!-- 右侧消息区域 -->
       <div class="right-panel">
         <!-- 上半部分：消息显示区 -->
-        <div
-          ref="messageDisplay"
-          class="message-display"
-          :style="{ height: messageDisplayHeight + 'px' }"
-        >
-          <MessageDisplay/>
+        <div ref="messageDisplay" class="message-display" :style="{ height: messageDisplayHeight + 'px' }">
+          <MessageDisplay />
         </div>
 
         <!-- 水平分割线 -->
-        <div
-          class="horizontal-divider"
-          @mousedown="startHorizontalResize"
-        ></div>
+        <div class="horizontal-divider" @mousedown="startHorizontalResize"></div>
 
         <!-- 下半部分：消息发送区 -->
         <div class="message-input">
-          <MessageInput/>
+          <MessageInput />
         </div>
       </div>
     </div>
@@ -129,7 +109,7 @@ const stopHorizontalResize = () => {
 // 初始化
 onMounted(() => {
   // 设置初始高度
-  messageDisplayHeight.value = window.innerHeight - 300
+  messageDisplayHeight.value = window.innerHeight - 320
   
   // 窗口大小变化时的处理
   const handleResize = () => {
@@ -138,7 +118,7 @@ onMounted(() => {
       leftPanelWidth.value = maxWidth
     }
     
-    messageDisplayHeight.value = window.innerHeight - 300
+    messageDisplayHeight.value = window.innerHeight - 320
   }
   
   window.addEventListener('resize', handleResize)

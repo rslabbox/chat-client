@@ -48,8 +48,7 @@ impl ExamplePlugin {
         });
 
         let text_value_clone = Arc::clone(&self.text_value);
-        let _scan_button = PluginUi::button(&ui_clone, "打招呼", Some("refresh"), true, move || {
-            log_info!("扫描按钮被点击 - 开始异步操作");
+        let _scan_button = PluginUi::button(&ui_clone, "打招呼", None, true, move || {
             let text = text_value_clone.lock().unwrap();
             let hi = format!("hi, {}", *text);
             send_message_to_frontend("example_plugin", hi.as_str());
@@ -60,7 +59,6 @@ impl ExamplePlugin {
 
 impl PluginHandler for ExamplePlugin {
     fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // 使用插件日志宏 - 现在会显示真实的文件名和行号
         log_info!("[{}] Plugin mount successfully", self.name);
 
         Ok(())
@@ -72,12 +70,12 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected from", self.name);
+        log_info!("[{}] Connected", self.name);
         Ok(())
     }
 
     fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected from", self.name);
+        log_warn!("[{}] Disconnected", self.name);
         Ok(())
     }
 
@@ -122,9 +120,7 @@ pub extern "C" fn create_plugin() -> *mut PluginInterface {
 pub extern "C" fn destroy_plugin(interface: *mut PluginInterface) {
     if !interface.is_null() {
         unsafe {
-            // 调用接口的销毁函数
             ((*interface).destroy)((*interface).plugin_ptr);
-            // 释放接口本身
             let _ = Box::from_raw(interface);
         }
     }

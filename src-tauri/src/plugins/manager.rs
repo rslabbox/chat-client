@@ -131,7 +131,7 @@ impl PluginManager {
             let current = self.current_plugin.lock().unwrap();
             current.clone()
         }; 
-           // 先卸载当前插件
+        // 先卸载当前插件
         if let Some(current_id) = current_plugin_id {
             if current_id != plugin_id {
                 if let Err(e) = self.dispose_plugin(&current_id) {
