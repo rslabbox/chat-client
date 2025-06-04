@@ -1,16 +1,11 @@
 use plugin_interface::{
-    create_plugin_interface_from_handler, create_plugin_ui, log_info, log_warn,
-    send_message_to_frontend, ContainerRef, PluginHandler, PluginInterface, PluginMetadata,
-    PluginUi, SelectRef, TextRef,
+    create_plugin_interface_from_handler, log_info, log_warn, PluginHandler, PluginInterface, PluginMetadata, PluginUi, PluginConfig, TextRef, SelectRef, ContainerRef, set_plugin_id, send_message_to_frontend
 };
 use std::sync::{Arc, Mutex};
 
-// 包含构建时生成的元数据
-include!(concat!(env!("OUT_DIR"), "/plugin_metadata.rs"));
-
 /// 示例插件实现
 pub struct ExamplePlugin {
-    name: String,
+    config: PluginConfig,
     ui: Arc<Mutex<PluginUi>>,
     text_value: Arc<Mutex<String>>,
     text_display: Option<TextRef>,
@@ -20,10 +15,27 @@ pub struct ExamplePlugin {
 
 impl ExamplePlugin {
     pub fn new() -> Self {
-        let ui = create_plugin_ui!();
+        // 读取配置文件
+        let config = PluginConfig::from_file().unwrap_or_else(|e| {
+            log_warn!("Failed to load config.toml: {}, using defaults", e);
+            PluginConfig {
+                id: "example_plugin".to_string(),
+                disabled: false,
+                name: "Example Plugin".to_string(),
+                description: "Default example plugin".to_string(),
+                version: "1.0.0".to_string(),
+                author: None,
+            }
+        });
+
+        // 创建UI
+        let ui = PluginUi::new();
+
+        // 初始化线程本地插件ID
+        set_plugin_id(config.id.clone());
 
         let mut instance = Self {
-            name: PLUGIN_NAME.to_string(),
+            config,
             ui: Arc::clone(&ui),
             text_value: Arc::new(Mutex::new(String::new())),
             text_display: None,
@@ -80,7 +92,7 @@ impl ExamplePlugin {
                 log_info!("用户选择了: {}", selected);
                 send_message_to_frontend!("您选择了: {}", selected);
             })
-            .add_button("右侧按钮", None, true, || {
+            .add_button("右侧按钮", None, true, move || {
                 log_info!("容器中的按钮被点击了！");
                 send_message_to_frontend!("容器按钮被点击");
             })
@@ -91,30 +103,30 @@ impl ExamplePlugin {
 
 impl PluginHandler for ExamplePlugin {
     fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Plugin mount successfully", self.name);
+        log_info!("[{}] Plugin mount successfully", self.config.name);
 
         Ok(())
     }
 
     fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Plugin disposed successfully", self.name);
+        log_info!("[{}] Plugin disposed successfully", self.config.name);
         Ok(())
     }
 
     fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected", self.name);
+        log_info!("[{}] Connected", self.config.name);
         Ok(())
     }
 
     fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected", self.name);
+        log_warn!("[{}] Disconnected", self.config.name);
         Ok(())
     }
 
     fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
-        log_info!("[{}] Received message: {}", self.name, message);
+        log_info!("[{}] Received message: {}", self.config.name, message);
 
-        let response = format!("Echo from {}: {}", self.name, message);
+        let response = format!("Echo from {}: {}", self.config.name, message);
 
         // 向前端发送响应
         send_message_to_frontend!("收到消息: {}", message);
@@ -122,7 +134,16 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn get_metadata(&self) -> PluginMetadata {
-        get_plugin_metadata()
+        PluginMetadata {
+            id: self.config.id.clone(),
+            disabled: self.config.disabled,
+            name: self.config.name.clone(),
+            description: self.config.description.clone(),
+            version: self.config.version.clone(),
+            author: self.config.author.clone(),
+            library_path: None, // 运行时设置
+            config_path: "config.toml".to_string(),
+        }
     }
 
     fn get_ui(&self) -> Arc<Mutex<PluginUi>> {

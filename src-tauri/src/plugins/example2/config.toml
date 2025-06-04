@@ -1,11 +1,11 @@
 [plugin]
-id = "example_plugin"
+id = "example_plugin2"
 disabled = false
-name = "Example Plugin"
+name = "Example Plugin2"
 version = "1.0.0"
 description = "这是一个示例插件，展示插件系统的基本功能"
 author = "Your Name"
-library = "libexample.dylib"
+library = "libexample2.dylib"
 
 [metadata]
 # 插件特定的元数据
