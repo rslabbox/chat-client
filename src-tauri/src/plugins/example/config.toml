@@ -5,7 +5,7 @@ name = "Example Plugin"
 version = "1.0.0"
 description = "这是一个示例插件，展示插件系统的基本功能"
 author = "Your Name"
-library = "libexample.dylib"
+library = "example"
 
 [metadata]
 # 插件特定的元数据

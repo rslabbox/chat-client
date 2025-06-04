@@ -96,20 +96,29 @@ impl PluginLoader {
 
     /// 查找动态库文件
     fn find_library_file(&self, plugin_dir: &std::path::Path, library_name: &str) -> Option<String> {
+        // 判断是哪个平台 windows / macos / linux
+        let library_name_dylib = if cfg!(target_os = "windows") {
+            format!("{}.dll", library_name)
+        } else if cfg!(target_os = "macos") {
+            format!("lib{}.dylib", library_name)
+        } else {
+            format!("lib{}.so", library_name)
+        };
+        
         // 直接在插件目录中查找
-        let direct_path = plugin_dir.join(library_name);
+        let direct_path = plugin_dir.join(&library_name_dylib);
         if direct_path.exists() {
             return Some(direct_path.to_string_lossy().to_string());
         }
 
         // 在插件目录的 target/debug 目录中查找（开发环境）
-        let debug_path = plugin_dir.join("target").join("debug").join(library_name);
+        let debug_path = plugin_dir.join("target").join("debug").join(&library_name_dylib);
         if debug_path.exists() {
             return Some(debug_path.to_string_lossy().to_string());
         }
 
         // 在插件目录的 target/release 目录中查找（开发环境）
-        let target_path = plugin_dir.join("target").join("release").join(library_name);
+        let target_path = plugin_dir.join("target").join("release").join(&library_name_dylib);
         if target_path.exists() {
             return Some(target_path.to_string_lossy().to_string());
         }
@@ -119,7 +128,7 @@ impl PluginLoader {
             .unwrap_or_default()
             .join("target")
             .join("release")
-            .join(library_name);
+            .join(&library_name_dylib);
         if workspace_release_path.exists() {
             return Some(workspace_release_path.to_string_lossy().to_string());
         }
@@ -129,7 +138,7 @@ impl PluginLoader {
             .unwrap_or_default()
             .join("target")
             .join("debug")
-            .join(library_name);
+            .join(&library_name_dylib);
         if workspace_debug_path.exists() {
             return Some(workspace_debug_path.to_string_lossy().to_string());
         }
