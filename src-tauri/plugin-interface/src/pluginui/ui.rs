@@ -108,12 +108,15 @@ impl Ui {
     }
 
     /// Add a combo box (dropdown) widget
-    pub fn combo_box(
+    pub fn combo_box<T>(
         &mut self,
-        options: &[&str],
-        selected: &mut usize,
+        options: Vec<T>,
+        selected: &mut Option<T>,
         placeholder: &str,
-    ) -> Response {
+    ) -> Response
+    where
+        T: Clone + PartialEq + ToString,
+    {
         // Use a stable ID based on component count and placeholder
         let id = format!(
             "combo_{}_{}",
@@ -126,17 +129,33 @@ impl Ui {
         let was_changed = self.changed_components.contains(&id);
         if was_changed {
             if let Some(new_value) = self.ui_event_data.get(&id) {
-                if let Ok(selection) = new_value.parse::<usize>() {
-                    *selected = selection;
+                if let Ok(selection_index) = new_value.parse::<usize>() {
+                    if selection_index < options.len() {
+                        *selected = Some(options[selection_index].clone());
+                    } else {
+                        *selected = None;
+                    }
                 }
             }
+        }
+
+        // Validate that selected value exists in options, otherwise set to None
+        let selected_index = if let Some(ref selected_value) = selected {
+            options.iter().position(|opt| opt == selected_value)
+        } else {
+            None
+        };
+
+        // If selected value doesn't exist in options, set selected to None
+        if selected.is_some() && selected_index.is_none() {
+            *selected = None;
         }
 
         let component = UiComponent {
             id: id.clone(),
             component: UiComponentType::ComboBox {
-                options: options.iter().map(|s| s.to_string()).collect(),
-                selected: *selected,
+                options: options.iter().map(|opt| opt.to_string()).collect(),
+                selected: selected_index,
                 placeholder: placeholder.to_string(),
             },
         };

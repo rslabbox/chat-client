@@ -21,7 +21,7 @@ export type ComponentType =
   | {
       type: 'ComboBox'
       options: string[]
-      selected: number
+      selected: number | null
       placeholder: string
     }
   | {

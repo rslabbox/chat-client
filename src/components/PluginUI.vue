@@ -127,7 +127,7 @@ const loadPluginUI = async (pluginId: string) => {
         if (component.component.type === 'TextEdit') {
           textFieldValues[component.id] = component.component.value || ''
         } else if (component.component.type === 'ComboBox') {
-          selectValues[component.id] = component.component.selected
+          selectValues[component.id] = component.component.selected !== null ? component.component.selected : ''
         } else if (component.component.type === 'TextField') {
           textFieldValues[component.id] = component.component.value || ''
         } else if (component.component.type === 'Select') {

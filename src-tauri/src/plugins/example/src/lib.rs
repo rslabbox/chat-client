@@ -8,7 +8,7 @@ pub struct ExamplePlugin {
     metadata: PluginMetadata,
     name: String,
     age: u32,
-    selected_option: usize,
+    selected_option: Option<String>,
 }
 
 impl ExamplePlugin {
@@ -17,7 +17,7 @@ impl ExamplePlugin {
         Self {
             name: "Arthur".to_owned(),
             age: 42,
-            selected_option: 0,
+            selected_option: None,
             metadata: PluginMetadata{
                 id: "example_plugin".to_string(),
                 disabled: false,
@@ -59,14 +59,14 @@ impl PluginHandler for ExamplePlugin {
             log_info!("Text field updated: {}", self.name);
         }
 
-        let combo_response = ui.combo_box(&vec!["Option 1","Option 2","Option 3"], &mut self.selected_option, "Select an option");
+        let combo_response = ui.combo_box(vec!["Option 1".to_string(), "Option 2".to_string(), "Option 3".to_string()], &mut self.selected_option, "Select an option");
         if combo_response.clicked() {
-            log_info!("Combo box updated: {}", self.selected_option);
+            log_info!("Combo box updated: {:?}", self.selected_option);
         }
 
         ui.label(&format!("Name: {}", self.name));
         ui.label(&format!("Age: {}", self.age));
-        ui.label(&format!("Selected Option: {}", self.selected_option));
+        ui.label(&format!("Selected Option: {}", self.selected_option.as_ref().unwrap_or(&"None".to_string())));
     }
     
     // 挂载插件的时候调用

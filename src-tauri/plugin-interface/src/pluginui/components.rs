@@ -92,7 +92,7 @@ pub enum UiComponentType {
     },
     ComboBox {
         options: Vec<String>,
-        selected: usize,
+        selected: Option<usize>,
         placeholder: String,
     },
     Horizontal {
