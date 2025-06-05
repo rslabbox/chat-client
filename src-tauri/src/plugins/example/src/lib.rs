@@ -3,8 +3,10 @@ use plugin_interface::{
     create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui},
     PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginMetadata
 };
+use std::sync::Arc;
 
 /// 示例插件实现 - 使用新的UI框架
+#[derive(Clone)]
 pub struct ExamplePlugin {
     metadata: PluginMetadata,
     name: String,
@@ -45,31 +47,39 @@ impl ExamplePlugin {
                 // 使用新的消息发送功能
                 self.send_message_to_frontend("Light theme selected");
             }
-            if ui.button("Stream Demo").clicked() {
+            if ui.button("Background Stream Demo").clicked() {
                 log_info!("Starting stream demo");
-                // 演示流式消息功能
-                self.demo_streaming_message();
+                // 创建Arc包装的self引用
+                let self_arc = Arc::new(self.clone());
+                std::thread::spawn(move || {
+                    self_arc.demo_streaming_message_background();
+                });
             }
         });
     }
 
-    fn demo_streaming_message(&self) {
-        // 演示流式消息的使用
-        match self.send_message_stream_start("demo", Some("Streaming demo")) {
+    fn demo_streaming_message_background(self: Arc<Self>) {
+        // 演示后台线程流式消息的使用
+        match self.send_message_stream_start("demo", Some("Background Streaming demo")) {
             Ok(stream_id) => {
-                log_info!("Started stream: {}", stream_id);
+                log_info!("Started background stream: {}", stream_id);
 
                 // 发送一些示例数据块
                 let chunks = vec![
-                    "这是第一部分数据...",
-                    "这是第二部分数据...",
-                    "这是第三部分数据...",
+                    "后台第一部分数据...",
+                    "后台第二部分数据...",
+                    "后台第三部分数据...",
+                    "后台第四部分数据，请稍等...",
+                    
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
+                    // 添加延迟模拟真实的后台处理
+                    std::thread::sleep(std::time::Duration::from_millis(2000));
+
                     let is_final = i == chunks.len() - 1;
                     if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
-                        log_warn!("Failed to send stream chunk: {}", e);
+                        log_warn!("Failed to send background stream chunk: {}", e);
                         let _ = self.send_message_stream_end(&stream_id, false, Some(&format!("Error: {}", e)));
                         return;
                     }
@@ -77,13 +87,13 @@ impl ExamplePlugin {
 
                 // 结束流式传输
                 if let Err(e) = self.send_message_stream_end(&stream_id, true, None) {
-                    log_warn!("Failed to end stream: {}", e);
+                    log_warn!("Failed to end background stream: {}", e);
                 }
 
-                log_info!("Stream demo completed");
+                log_info!("Background stream demo completed");
             }
             Err(e) => {
-                log_warn!("Failed to start stream: {}", e);
+                log_warn!("Failed to start background stream: {}", e);
             }
         }
     }
@@ -157,8 +167,6 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn get_metadata(&self) -> PluginMetadata {
-        log_info!("Config Metadata: id={}, name={}, version={}",
-                  self.metadata.id, self.metadata.name, self.metadata.version);
         self.metadata.clone()
     }
 }
