@@ -1,48 +1,34 @@
 <template>
   <!-- 按钮组件 -->
-  <el-button
-    v-if="component.component.type === 'Button'"
-    :type="component.component.enabled ? 'primary' : 'info'"
-    :disabled="!component.component.enabled"
-    :icon="getIcon(component.component.icon)"
-    @click="$emit('button-click', component.id)"
-    style="width: 100%;"
-  >
+  <el-button v-if="component.component.type === 'Button'" :type="component.component.enabled ? 'primary' : 'info'"
+    :disabled="!component.component.enabled" :icon="getIcon(component.component.icon)"
+    @click="$emit('button-click', component.id)" style="width: 100%;">
     {{ component.component.label }}
   </el-button>
 
   <!-- 文本输入框组件 -->
-  <el-input
-    v-else-if="component.component.type === 'TextField'"
-    v-model="props.textFieldValues[component.id]"
-    :placeholder="component.component.hint"
-    @keyup.enter="$emit('textfield-submit', component.id)"
-    @blur="$emit('textfield-submit', component.id)"
-  >
+  <el-input v-else-if="component.component.type === 'TextField'" v-model="props.textFieldValues[component.id]"
+    :placeholder="component.component.hint" @keyup.enter="$emit('textfield-submit', component.id)"
+    @blur="$emit('textfield-submit', component.id)">
   </el-input>
 
   <!-- 文本显示组件 -->
-  <div
-    v-else-if="component.component.type === 'Text'"
-    class="text-component"
-  >
+  <div v-else-if="component.component.type === 'Text'" class="text-component">
     {{ component.component.value }}
   </div>
 
   <!-- 下拉选择框组件 -->
-  <el-select
-    v-else-if="component.component.type === 'Select'"
-    v-model="props.selectValues[component.id]"
-    placeholder="请选择"
-    @change="$emit('select-change', component.id, $event)"
-    style="width: 100%;"
-  >
-    <el-option
-      v-for="option in component.component.options"
-      :key="option"
-      :label="option"
-      :value="option"
-    />
+  <el-select v-else-if="component.component.type === 'Select'" v-model="props.selectValues[component.id]"
+    placeholder="请选择" @change="$emit('select-change', component.id, $event)" style="width: 100%;">
+    <el-option v-for="option in component.component.options" :key="option" :label="option" :value="option" />
+  </el-select>
+
+  <!-- 下拉框组件 (ComboBox) -->
+  <el-select v-else-if="component.component.type === 'ComboBox'" v-model="props.selectValues[component.id]"
+    :placeholder="component.component.placeholder" @change="$emit('select-change', component.id, $event)"
+    style="width: 100%;">
+    <el-option v-for="(option, index) in component.component.options" :key="index" :label="option"
+      :value="index.toString()" />
   </el-select>
 </template>
 

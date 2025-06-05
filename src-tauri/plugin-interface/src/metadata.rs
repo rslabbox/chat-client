@@ -17,6 +17,7 @@ pub struct PluginMetadata {
 /// FFI安全的插件元数据结构
 /// 使用C风格的字符串指针
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct PluginMetadataFFI {
     pub id: *const c_char,
     pub disabled: bool,

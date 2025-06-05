@@ -8,14 +8,13 @@ use std::os::raw::c_char;
 pub struct PluginInterface {
     pub plugin_ptr: *mut std::ffi::c_void,
     pub initialize: unsafe extern "C" fn(*mut std::ffi::c_void, HostCallbacks) -> i32,
-    pub on_mount: unsafe extern "C" fn(*mut std::ffi::c_void) -> i32,
+    pub update_ui: unsafe extern "C" fn(*mut std::ffi::c_void, *const std::ffi::c_void, *mut std::ffi::c_void) -> i32,
+    pub on_mount: unsafe extern "C" fn(*mut std::ffi::c_void, PluginMetadataFFI) -> i32,
     pub on_dispose: unsafe extern "C" fn(*mut std::ffi::c_void) -> i32,
     pub on_connect: unsafe extern "C" fn(*mut std::ffi::c_void) -> i32,
     pub on_disconnect: unsafe extern "C" fn(*mut std::ffi::c_void) -> i32,
     pub handle_message: unsafe extern "C" fn(*mut std::ffi::c_void, *const c_char, *mut *mut c_char) -> i32,
     pub get_metadata: unsafe extern "C" fn(*mut std::ffi::c_void) -> PluginMetadataFFI,
-    pub get_ui: unsafe extern "C" fn(*mut std::ffi::c_void, *mut *mut c_char) -> i32,
-    pub handle_ui_event: unsafe extern "C" fn(*mut std::ffi::c_void, *const c_char, *const c_char) -> i32,
     pub destroy: unsafe extern "C" fn(*mut std::ffi::c_void),
 }
 
@@ -49,9 +48,63 @@ pub fn create_plugin_interface_from_handler(
         }
     }
 
-    unsafe extern "C" fn on_mount_wrapper(ptr: *mut std::ffi::c_void) -> i32 {
-        let handler = &*(ptr as *mut Box<dyn crate::handler::PluginHandler>);
-        match handler.on_mount() {
+    unsafe extern "C" fn update_ui_wrapper(
+        ptr: *mut std::ffi::c_void,
+        ctx_ptr: *const std::ffi::c_void,
+        ui_ptr: *mut std::ffi::c_void
+    ) -> i32 {
+        let handler = &mut *(ptr as *mut Box<dyn crate::handler::PluginHandler>);
+        let ctx = &*(ctx_ptr as *const crate::pluginui::Context);
+        let ui = &mut *(ui_ptr as *mut crate::pluginui::Ui);
+
+        handler.update_ui(ctx, ui);
+        0
+    }
+
+    unsafe extern "C" fn on_mount_wrapper(ptr: *mut std::ffi::c_void, metadata_ffi: PluginMetadataFFI) -> i32 {
+        let handler = &mut *(ptr as *mut Box<dyn crate::handler::PluginHandler>);
+
+        // Convert FFI metadata back to Rust struct
+        let metadata = crate::metadata::PluginMetadata {
+            id: if !metadata_ffi.id.is_null() {
+                CStr::from_ptr(metadata_ffi.id).to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
+            disabled: metadata_ffi.disabled,
+            name: if !metadata_ffi.name.is_null() {
+                CStr::from_ptr(metadata_ffi.name).to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
+            description: if !metadata_ffi.description.is_null() {
+                CStr::from_ptr(metadata_ffi.description).to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
+            version: if !metadata_ffi.version.is_null() {
+                CStr::from_ptr(metadata_ffi.version).to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
+            author: if !metadata_ffi.author.is_null() {
+                Some(CStr::from_ptr(metadata_ffi.author).to_string_lossy().to_string())
+            } else {
+                None
+            },
+            library_path: if !metadata_ffi.library_path.is_null() {
+                Some(CStr::from_ptr(metadata_ffi.library_path).to_string_lossy().to_string())
+            } else {
+                None
+            },
+            config_path: if !metadata_ffi.config_path.is_null() {
+                CStr::from_ptr(metadata_ffi.config_path).to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
+        };
+
+        match handler.on_mount(&metadata) {
             Ok(_) => 0,
             Err(_) => -1,
         }
@@ -105,40 +158,6 @@ pub fn create_plugin_interface_from_handler(
         metadata.to_ffi()
     }
 
-    unsafe extern "C" fn get_ui_wrapper(
-        ptr: *mut std::ffi::c_void,
-        result: *mut *mut c_char
-    ) -> i32 {
-        let handler = &*(ptr as *mut Box<dyn crate::handler::PluginHandler>);
-        let ui = handler.get_ui();
-        let ui_guard = ui.lock().unwrap();
-
-        match serde_json::to_string(&ui_guard.get_components()) {
-            Ok(json) => {
-                let json_cstring = CString::new(json).unwrap();
-                *result = json_cstring.into_raw();
-                0
-            }
-            Err(_) => -1,
-        }
-    }
-
-    unsafe extern "C" fn handle_ui_event_wrapper(
-        ptr: *mut std::ffi::c_void,
-        component_id: *const c_char,
-        value: *const c_char
-    ) -> i32 {
-        let handler = &*(ptr as *mut Box<dyn crate::handler::PluginHandler>);
-        let component_id_str = CStr::from_ptr(component_id).to_string_lossy();
-        let value_str = CStr::from_ptr(value).to_string_lossy();
-
-        if handler.handle_ui_event(&component_id_str, &value_str) {
-            1
-        } else {
-            0
-        }
-    }
-
     unsafe extern "C" fn destroy_wrapper(ptr: *mut std::ffi::c_void) {
         let _ = Box::from_raw(ptr as *mut Box<dyn crate::handler::PluginHandler>);
     }
@@ -146,14 +165,13 @@ pub fn create_plugin_interface_from_handler(
     let interface = PluginInterface {
         plugin_ptr: handler_ptr,
         initialize: initialize_wrapper,
+        update_ui: update_ui_wrapper,
         on_mount: on_mount_wrapper,
         on_dispose: on_dispose_wrapper,
         on_connect: on_connect_wrapper,
         on_disconnect: on_disconnect_wrapper,
         handle_message: handle_message_wrapper,
         get_metadata: get_metadata_wrapper,
-        get_ui: get_ui_wrapper,
-        handle_ui_event: handle_ui_event_wrapper,
         destroy: destroy_wrapper,
     };
 

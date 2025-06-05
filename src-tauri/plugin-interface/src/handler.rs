@@ -2,6 +2,8 @@ use crate::callbacks::{HostCallbacks, set_host_callbacks};
 use crate::metadata::PluginMetadata;
 use crate::send_to_frontend;
 
+use crate::pluginui::{Context,Ui};
+
 pub fn send_message_to_frontend(plugin_id: &str, payload: &str) -> bool {
     send_to_frontend("plugin-message-response", &format!("{{\"plugin\": \"{}\", \"response\": \"{}\"}}", plugin_id, payload))
 }
@@ -15,10 +17,12 @@ pub trait PluginHandler: Send + Sync {
         Ok(())
     }
 
-
+    /// 更新UI（事件驱动）
+    /// 当前端用户交互或需要更新UI时调用
+    fn update_ui(&mut self, ctx: &Context, ui: &mut Ui);
 
     /// 插件挂载时调用
-    fn on_mount(&self) -> Result<(), Box<dyn std::error::Error>>;
+    fn on_mount(&mut self, metadata: &PluginMetadata) -> Result<(), Box<dyn std::error::Error>>;
 
     /// 插件卸载时调用
     fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>>;
@@ -34,18 +38,4 @@ pub trait PluginHandler: Send + Sync {
 
     /// 获取插件元数据
     fn get_metadata(&self) -> PluginMetadata;
-
-    /// 获取插件UI定义
-    /// 默认实现返回空UI
-    fn get_ui(&self) -> std::sync::Arc<std::sync::Mutex<crate::plugin_ui::PluginUi>> {
-        crate::plugin_ui::PluginUi::new()
-    }
-
-    /// 处理UI事件
-    /// 默认实现调用PluginUi的handle_event方法
-    fn handle_ui_event(&self, component_id: &str, value: &str) -> bool {
-        let ui = self.get_ui();
-        let ui_guard = ui.lock().unwrap();
-        ui_guard.handle_event(component_id, value)
-    }
 }

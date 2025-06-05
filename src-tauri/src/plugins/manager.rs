@@ -1,7 +1,8 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interface::{
-    log_error, log_info, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL
+    log_error, log_info, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
+    pluginui::{Context, Ui}
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -13,13 +14,26 @@ use tauri::{AppHandle, Emitter};
 static GLOBAL_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 /// 插件实例信息
-#[derive(Debug)]
 pub struct PluginInstance {
     pub metadata: PluginMetadata,
     pub handler: *mut PluginInterface,
     pub library: Library,
     pub is_mounted: bool,
     pub is_connected: bool,
+    pub ui_data: Option<String>, // 保存序列化的UI数据
+    pub ui_instance: Option<Arc<Mutex<Ui>>>, // 保存UI实例以处理事件
+}
+
+impl std::fmt::Debug for PluginInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PluginInstance")
+            .field("metadata", &self.metadata)
+            .field("is_mounted", &self.is_mounted)
+            .field("is_connected", &self.is_connected)
+            .field("has_ui_data", &self.ui_data.is_some())
+            .field("has_ui_instance", &self.ui_instance.is_some())
+            .finish()
+    }
 }
 
 unsafe impl Send for PluginInstance {}
@@ -190,12 +204,43 @@ impl PluginManager {
             return Err("插件初始化失败".to_string());
         }
 
-        // 调用 on_mount
-        let mount_result = unsafe { ((*handler).on_mount)((*handler).plugin_ptr) };
+        // 调用 on_mount，传递元数据
+        let metadata_ffi = plugin_metadata.to_ffi();
+        let mount_result = unsafe { ((*handler).on_mount)((*handler).plugin_ptr, metadata_ffi) };
+
+        // 清理FFI元数据内存
+        unsafe {
+            plugin_interface::metadata::free_plugin_metadata_ffi(metadata_ffi);
+        }
+
         let result: Result<(), Box<dyn std::error::Error>> = if mount_result == 0 {
             Ok(())
         } else {
             Err("插件挂载失败".into())
+        };
+
+        // 初始化UI
+        let context = Context::new(plugin_id.to_string());
+        let ui_arc = Ui::new(plugin_id.to_string());
+        let mut ui = ui_arc.lock().unwrap();
+
+        // 保存UI实例的引用以便后续事件处理
+        let ui_instance_ref = Arc::clone(&ui_arc);
+
+        unsafe {
+            ((*handler).update_ui)(
+                (*handler).plugin_ptr,
+                &context as *const Context as *const std::ffi::c_void,
+                &mut *ui as *mut Ui as *mut std::ffi::c_void
+            )
+        };
+
+        let ui_data = match serde_json::to_string(&ui.get_components()) {
+            Ok(json) => json,
+            Err(e) => {
+                log_error!("序列化UI数据失败: {}", e);
+                "[]".to_string()
+            }
         };
 
         match result {
@@ -207,6 +252,8 @@ impl PluginManager {
                     library,
                     is_mounted: true,
                     is_connected: false,
+                    ui_data: Some(ui_data),
+                    ui_instance: Some(ui_instance_ref),
                 };
 
                 instances.insert(plugin_id.to_string(), instance);
@@ -398,26 +445,22 @@ impl PluginManager {
 
     /// 获取插件UI定义
     pub fn get_plugin_ui(&self, plugin_id: &str) -> Result<String, String> {
-        let instances = self.instances.lock().unwrap();
+        let mut instances = self.instances.lock().unwrap();
 
-        if let Some(instance) = instances.get(plugin_id) {
+        if let Some(instance) = instances.get_mut(plugin_id) {
             if instance.is_mounted {
-                unsafe {
-                    let mut ui_json_ptr: *mut c_char = std::ptr::null_mut();
-                    let result = ((*instance.handler).get_ui)(
-                        (*instance.handler).plugin_ptr,
-                        &mut ui_json_ptr
-                    );
+                let ui_arc = instance.ui_instance.as_ref().ok_or("UI实例未找到")?;
+                let ui = ui_arc.lock().unwrap();
 
-                    if result == 0 && !ui_json_ptr.is_null() {
-                        let ui_json = CStr::from_ptr(ui_json_ptr).to_string_lossy().to_string();
-                        // 释放插件分配的内存
-                        let _ = CString::from_raw(ui_json_ptr);
-                        Ok(ui_json)
-                    } else {
-                        Err("获取插件UI失败".to_string())
+                let ui_data = match serde_json::to_string(&ui.get_components()) {
+                    Ok(json) => json,
+                    Err(e) => {
+                        log_error!("序列化UI数据失败: {}", e);
+                        "[]".to_string()
                     }
-                }
+                };
+                instance.ui_data = Some(ui_data.clone());
+                Ok(ui_data)
             } else {
                 Err("插件未挂载".to_string())
             }
@@ -428,22 +471,69 @@ impl PluginManager {
 
     /// 处理插件UI事件
     pub fn handle_plugin_ui_event(&self, plugin_id: &str, component_id: &str, value: &str) -> Result<bool, String> {
-        let instances = self.instances.lock().unwrap();
+        let mut instances = self.instances.lock().unwrap();
 
-        if let Some(instance) = instances.get(plugin_id) {
+        if let Some(instance) = instances.get_mut(plugin_id) {
             if instance.is_mounted {
-                unsafe {
-                    let component_id_cstr = CString::new(component_id).map_err(|_| "组件ID转换失败")?;
-                    let value_cstr = CString::new(value).map_err(|_| "值转换失败")?;
+                let mut event_handled = false;
 
-                    let result = ((*instance.handler).handle_ui_event)(
-                        (*instance.handler).plugin_ptr,
-                        component_id_cstr.as_ptr(),
-                        value_cstr.as_ptr()
-                    );
-
-                    Ok(result != 0)
+                // 首先尝试使用UI实例处理事件
+                if let Some(ui_instance) = &instance.ui_instance {
+                    if let Ok(mut ui) = ui_instance.lock() {
+                        let handled = ui.handle_ui_event(component_id, value);
+                        if handled {
+                            event_handled = true;
+                        }
+                    }
                 }
+
+                // 如果事件被处理，调用 update_ui 并发送更新事件
+                if event_handled {
+                    if let Some(ui_instance) = &instance.ui_instance {
+                        // 创建包含UI事件数据的Context
+                        let mut ui_event_data = std::collections::HashMap::new();
+                        ui_event_data.insert(component_id.to_string(), value.to_string());
+                        let context = Context::with_ui_event_data(plugin_id.to_string(), ui_event_data);
+                        let mut ui = ui_instance.lock().unwrap();
+
+                        // 确保UI实例也有事件数据（这是关键！）
+                        ui.handle_ui_event(component_id, value);
+
+                        // 只清除组件，保留事件状态用于本次update_ui
+                        ui.clear_components_only();
+
+                        let update_ui_result = unsafe {
+                            ((*instance.handler).update_ui)(
+                                (*instance.handler).plugin_ptr,
+                                &context as *const Context as *const std::ffi::c_void,
+                                &mut *ui as *mut Ui as *mut std::ffi::c_void
+                            )
+                        };
+
+                        if update_ui_result == 0 {
+                            // 更新UI数据
+                            let ui_data = match serde_json::to_string(&ui.get_components()) {
+                                Ok(json) => json,
+                                Err(e) => {
+                                    log_error!("序列化UI数据失败: {}", e);
+                                    "[]".to_string()
+                                }
+                            };
+                            instance.ui_data = Some(ui_data.clone());
+
+                            // 清除事件状态，为下次事件做准备
+                            ui.clear_events();
+
+                            drop(ui); // 释放锁
+                            drop(instances); // 释放instances锁
+
+                            // 发送UI更新事件到前端
+                            let _ = self.notify_plugin_ui_update(plugin_id);
+                        }
+                    }
+                }
+
+                Ok(event_handled)
             } else {
                 Err("插件未挂载".to_string())
             }
@@ -456,8 +546,11 @@ impl PluginManager {
     pub fn notify_plugin_ui_update(&self, plugin_id: &str) -> Result<(), String> {
         // 向前端发送UI更新事件
         if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
-            let payload = format!("{{\"plugin\": \"{}\"}}", plugin_id);
-            app_handle.emit("plugin-ui-updated", &payload)
+            // 创建一个结构化的payload对象
+            let payload = serde_json::json!({
+                "plugin": plugin_id
+            });
+            app_handle.emit("plugin-ui-updated", payload)
                 .map_err(|e| format!("发送UI更新事件失败: {}", e))?;
         }
         Ok(())

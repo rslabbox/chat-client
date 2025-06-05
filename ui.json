@@ -1,0 +1,54 @@
+[
+    {
+        "id": "label_f63a93fc-68c6-4d1e-b526-af276911361e",
+        "component": {
+            "type": "Label",
+            "text": "Test Plugin"
+        }
+    },
+    {
+        "id": "label_1b4b8ecd-7c2f-401f-b775-715f1564107f",
+        "component": {
+            "type": "Label",
+            "text": "Simple test without complex components"
+        }
+    },
+    {
+        "id": "horizontal_0697976f-f60e-4a09-9b10-3b96e0c701c1",
+        "component": {
+            "type": "Horizontal",
+            "children": [
+                {
+                    "id": "button_b448521a-cce4-4787-9a2d-d753db8dd3bb",
+                    "component": {
+                        "type": "Button",
+                        "text": "Dark",
+                        "enabled": true
+                    }
+                },
+                {
+                    "id": "button_29d18d53-8c24-4c6a-a5a0-ef12f90d0f57",
+                    "component": {
+                        "type": "Button",
+                        "text": "Light",
+                        "enabled": true
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "id": "label_24cedd41-4e90-441a-bada-9a0a32d4d4d8",
+        "component": {
+            "type": "Label",
+            "text": "Name: Arthur"
+        }
+    },
+    {
+        "id": "label_b27678c4-499b-48bc-a7ee-36b7b3c76d0b",
+        "component": {
+            "type": "Label",
+            "text": "Age: 42"
+        }
+    }
+]

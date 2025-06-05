@@ -5,10 +5,28 @@
 // UI组件类型枚举
 export type ComponentType =
   | {
+      type: 'Label'
+      text: string
+    }
+  | {
       type: 'Button'
-      label: string
-      icon?: string
+      text: string
       enabled: boolean
+    }
+  | {
+      type: 'TextEdit'
+      value: string
+      hint: string
+    }
+  | {
+      type: 'ComboBox'
+      options: string[]
+      selected: number
+      placeholder: string
+    }
+  | {
+      type: 'Horizontal'
+      children: Component[]
     }
   | {
       type: 'TextField'
