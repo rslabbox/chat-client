@@ -25,6 +25,10 @@ export type ComponentType =
       placeholder: string
     }
   | {
+      type: 'Toggle'
+      value: boolean
+    }
+  | {
       type: 'Horizontal'
       children: Component[]
     }

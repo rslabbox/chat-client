@@ -44,9 +44,15 @@
             :value="index" />
         </el-select>
 
+        <!-- 开关组件 -->
+        <div v-else-if="component.component.type === 'Toggle'" class="toggle-container">
+          <el-switch v-model="toggleValues[component.id]" @change="handleToggleChange(component.id, $event)">
+          </el-switch>
+        </div>
+
         <!-- 水平布局容器组件 -->
         <div v-else-if="component.component.type === 'Horizontal'" class="horizontal-container"
-          style="display: flex; gap: 10px; margin-bottom: 10px; align-items: stretch;">
+          style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
           <div v-for="child in component.component.children" :key="child.id" class="horizontal-child"
             style="flex: 1; min-width: 0;">
             <!-- 递归渲染子组件 -->
@@ -76,6 +82,12 @@
                 <el-option v-for="(option, index) in child.component.options" :key="index" :label="option"
                   :value="index" />
               </el-select>
+
+              <!-- 子组件开关 -->
+              <div v-else-if="child.component.type === 'Toggle'" class="toggle-container">
+                <el-switch v-model="toggleValues[child.id]" @change="handleToggleChange(child.id, $event)">
+                </el-switch>
+              </div>
             </div>
           </div>
         </div>
@@ -103,6 +115,7 @@ const loading = ref(false)
 const error = ref<string>('')
 const textFieldValues = reactive<Record<string, string>>({})
 const selectValues = reactive<Record<string, string | number>>({})
+const toggleValues = reactive<Record<string, boolean>>({})
 
 // 事件监听器
 let unlistenPluginUiUpdate: UnlistenFn | null = null
@@ -128,6 +141,8 @@ const loadPluginUI = async (pluginId: string) => {
           textFieldValues[component.id] = component.component.value || ''
         } else if (component.component.type === 'ComboBox') {
           selectValues[component.id] = component.component.selected !== null ? component.component.selected : ''
+        } else if (component.component.type === 'Toggle') {
+          toggleValues[component.id] = component.component.value
         } else if (component.component.type === 'TextField') {
           textFieldValues[component.id] = component.component.value || ''
         } else if (component.component.type === 'Select') {
@@ -198,6 +213,22 @@ const handleSelectChange = async (componentId: string, value: string | number) =
   }
 }
 
+// 处理开关变化
+const handleToggleChange = async (componentId: string, value: boolean) => {
+  if (!props.pluginId) return
+
+  try {
+    const success = await handlePluginUiEvent(props.pluginId, componentId, String(value))
+    if (success) {
+      console.log('开关变化事件处理成功:', value)
+    } else {
+      console.warn('开关变化事件处理失败')
+    }
+  } catch (err) {
+    console.error('处理开关变化事件失败:', err)
+  }
+}
+
 // 监听插件ID变化
 watch(() => props.pluginId, (newPluginId) => {
   if (newPluginId) {
@@ -209,6 +240,9 @@ watch(() => props.pluginId, (newPluginId) => {
     })
     Object.keys(selectValues).forEach(key => {
       delete selectValues[key]
+    })
+    Object.keys(toggleValues).forEach(key => {
+      delete toggleValues[key]
     })
   }
 }, { immediate: true })
@@ -281,10 +315,15 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.toggle-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
 .horizontal-container {
   display: flex;
   gap: 10px;
-  align-items: stretch;
+  align-items: center;
 }
 
 .horizontal-child {

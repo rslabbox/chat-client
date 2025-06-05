@@ -95,6 +95,9 @@ pub enum UiComponentType {
         selected: Option<usize>,
         placeholder: String,
     },
+    Toggle {
+        value: bool,
+    },
     Horizontal {
         children: Vec<UiComponent>,
     },

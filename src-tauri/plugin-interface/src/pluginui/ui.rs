@@ -165,6 +165,34 @@ impl Ui {
         Response::new_with_component_and_state(id, was_clicked, was_changed)
     }
 
+    /// Add a toggle switch
+    pub fn toggle(&mut self, value: &mut bool) -> Response {
+        // Use a stable ID based on component count
+        let id = format!("toggle_{}", self.components.len());
+
+        // Check if this component was clicked and update the value from frontend data
+        let was_clicked = self.clicked_components.contains(&id);
+        let was_changed = self.changed_components.contains(&id);
+        if was_changed {
+            if let Some(new_value) = self.ui_event_data.get(&id) {
+                if let Ok(toggle_value) = new_value.parse::<bool>() {
+                    *value = toggle_value;
+                }
+            }
+        }
+
+        let component = UiComponent {
+            id: id.clone(),
+            component: UiComponentType::Toggle {
+                value: *value,
+            },
+        };
+        self.add_component(component);
+
+        // Return a response with event states
+        Response::new_with_component_and_state(id, was_clicked, was_changed)
+    }
+
     /// Create a horizontal layout
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> R {
         self.layout_stack.push(LayoutContext::Horizontal);
@@ -256,6 +284,10 @@ impl Ui {
             self.clicked_components.insert(component_id.to_string());
             true
         } else if component_id.starts_with("textedit_") {
+            self.changed_components.insert(component_id.to_string());
+            true
+        } else if component_id.starts_with("toggle_") {
+            self.clicked_components.insert(component_id.to_string());
             self.changed_components.insert(component_id.to_string());
             true
         } else {

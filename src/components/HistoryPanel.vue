@@ -87,7 +87,7 @@ import { storeToRefs } from 'pinia'
 import { Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMessageStore } from '@/stores/messages'
-import { FolderAdd, AddLocation } from '@element-plus/icons-vue'
+import { FolderAdd } from '@element-plus/icons-vue'
 
 const messageStore = useMessageStore()
 const { currentPluginSessions, currentSessionId } = storeToRefs(messageStore)

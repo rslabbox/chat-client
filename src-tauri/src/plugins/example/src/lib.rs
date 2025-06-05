@@ -9,6 +9,7 @@ pub struct ExamplePlugin {
     name: String,
     age: u32,
     selected_option: Option<String>,
+    dark_mode: bool,
 }
 
 impl ExamplePlugin {
@@ -18,6 +19,7 @@ impl ExamplePlugin {
             name: "Arthur".to_owned(),
             age: 42,
             selected_option: None,
+            dark_mode: false,
             metadata: PluginMetadata{
                 id: "example_plugin".to_string(),
                 disabled: false,
@@ -64,9 +66,19 @@ impl PluginHandler for ExamplePlugin {
             log_info!("Combo box updated: {:?}", self.selected_option);
         }
 
+        // 开关组件示例 - 在水平布局中使用
+        ui.horizontal(|ui| {
+            ui.label("Dark Mode:");
+            let toggle_response = ui.toggle(&mut self.dark_mode);
+            if toggle_response.changed() {
+                log_info!("Dark mode toggled: {}", self.dark_mode);
+            }
+        });
+
         ui.label(&format!("Name: {}", self.name));
         ui.label(&format!("Age: {}", self.age));
         ui.label(&format!("Selected Option: {}", self.selected_option.as_ref().unwrap_or(&"None".to_string())));
+        ui.label(&format!("Dark Mode: {}", self.dark_mode));
     }
     
     // 挂载插件的时候调用

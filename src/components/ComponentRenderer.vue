@@ -1,9 +1,8 @@
 <template>
   <!-- 按钮组件 -->
   <el-button v-if="component.component.type === 'Button'" :type="component.component.enabled ? 'primary' : 'info'"
-    :disabled="!component.component.enabled" :icon="getIcon(component.component.icon)"
-    @click="$emit('button-click', component.id)" style="width: 100%;">
-    {{ component.component.label }}
+    :disabled="!component.component.enabled" @click="$emit('button-click', component.id)" style="width: 100%;">
+    {{ component.component.text }}
   </el-button>
 
   <!-- 文本输入框组件 -->
@@ -33,7 +32,6 @@
 </template>
 
 <script setup lang="ts">
-import { Refresh, Search, Setting } from '@element-plus/icons-vue'
 import type { Component } from '@/api/types'
 
 // Props
@@ -53,15 +51,7 @@ defineEmits<{
   'select-change': [componentId: string, value: string]
 }>()
 
-// 获取图标组件
-const getIcon = (iconName?: string) => {
-  const iconMap: Record<string, any> = {
-    'refresh': Refresh,
-    'search': Search,
-    'setting': Setting,
-  }
-  return iconName ? iconMap[iconName] : undefined
-}
+
 </script>
 
 <style scoped>

@@ -78,10 +78,8 @@ const handleDisconnect = async () => {
 
 .config-content {
   flex: 1;
-  display: block;
-  align-items: center;
-  justify-content: center;
-  margin-top: auto;
+  overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .config-footer {
