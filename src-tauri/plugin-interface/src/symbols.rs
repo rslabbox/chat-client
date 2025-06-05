@@ -57,7 +57,30 @@ pub fn create_plugin_interface_from_handler(
         let ctx = &*(ctx_ptr as *const crate::pluginui::Context);
         let ui = &mut *(ui_ptr as *mut crate::pluginui::Ui);
 
-        handler.update_ui(ctx, ui);
+        // 创建一个tokio运行时来处理异步update_ui
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(_) => {
+                // 如果无法创建运行时，尝试使用当前运行时
+                match tokio::runtime::Handle::try_current() {
+                    Ok(handle) => {
+                        // 使用当前运行时的阻塞调用
+                        handle.block_on(handler.update_ui_async(ctx, ui));
+                        return 0;
+                    }
+                    Err(_) => {
+                        // 如果没有运行时，创建一个新的
+                        match tokio::runtime::Runtime::new() {
+                            Ok(rt) => rt,
+                            Err(_) => return -1, // 失败
+                        }
+                    }
+                }
+            }
+        };
+
+        // 在运行时中执行异步update_ui
+        rt.block_on(handler.update_ui_async(ctx, ui));
         0
     }
 

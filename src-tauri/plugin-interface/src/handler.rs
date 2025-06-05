@@ -15,9 +15,9 @@ pub trait PluginHandler: Send + Sync {
         Ok(())
     }
 
-    /// 更新UI（事件驱动）
+    /// 更新UI（异步版本）
     /// 当前端用户交互或需要更新UI时调用
-    fn update_ui(&mut self, ctx: &Context, ui: &mut Ui);
+    fn update_ui_async<'a>(&'a mut self, ctx: &'a Context, ui: &'a mut Ui) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
     /// 插件挂载时调用
     fn on_mount(&mut self, metadata: &PluginMetadata) -> Result<(), Box<dyn std::error::Error>>;

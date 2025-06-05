@@ -1,6 +1,7 @@
 pub mod config;
 pub mod loader;
 pub mod manager;
+pub mod async_manager;
 
 pub use config::{PluginConfig, PluginInfo};
 pub use loader::PluginLoader;

@@ -1,266 +1,543 @@
 use plugin_interface::{
-    api::send_to_frontend,
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
-    PluginHandler, PluginInterface, PluginMessage, PluginMetadata, PluginStreamMessage,
-    StreamDataData, StreamEndData, StreamMessageData,
+    PluginHandler, PluginInterface, PluginMetadata,
 };
 use rand::Rng;
 use serde_json::json;
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, Instant};
+use tokio::sync::{RwLock, mpsc, broadcast};
+use tokio::task::{JoinHandle, spawn};
+use std::sync::Arc;
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
-/// 示例插件实现 - 使用新的UI框架
+/// 异步任务状态
+#[derive(Debug, Clone)]
+pub struct AsyncTaskState {
+    pub task_id: String,
+    pub status: String,
+    pub progress: f32,
+    pub message: String,
+}
+
+/// 示例插件实现 - 完全支持tokio异步
 pub struct ExamplePlugin {
     metadata: PluginMetadata,
     name: String,
     age: u32,
     selected_option: Option<String>,
     dark_mode: bool,
+    // 异步运行时相关
+    runtime_handle: Option<tokio::runtime::Handle>,
+    active_tasks: Arc<RwLock<HashMap<String, JoinHandle<()>>>>,
+    task_states: Arc<RwLock<HashMap<String, AsyncTaskState>>>,
+    shutdown_sender: Option<broadcast::Sender<()>>,
+    message_channel: Option<mpsc::UnboundedSender<String>>,
 }
 
 impl ExamplePlugin {
     // 导出插件的时候调用
     fn new() -> Self {
+        let (shutdown_sender, _) = broadcast::channel(1);
+        let (message_sender, _message_receiver) = mpsc::unbounded_channel();
+
         Self {
-            name: "Debin".to_owned(),
+            name: "AsyncDebin".to_owned(),
             age: 32,
             selected_option: None,
             dark_mode: false,
             metadata: PluginMetadata {
-                id: "example_plugin".to_string(),
+                id: "async_example_plugin".to_string(),
                 disabled: false,
-                name: "Example Plugin".to_string(),
-                description: "Example plugin using new UI framework".to_string(),
-                version: "1.0.0".to_string(),
+                name: "Async Example Plugin".to_string(),
+                description: "Fully async plugin using tokio runtime".to_string(),
+                version: "2.0.0".to_string(),
                 author: Some("Augment".to_string()),
                 library_path: None,
                 config_path: "config.toml".to_string(),
             },
+            runtime_handle: None,
+            active_tasks: Arc::new(RwLock::new(HashMap::new())),
+            task_states: Arc::new(RwLock::new(HashMap::new())),
+            shutdown_sender: Some(shutdown_sender),
+            message_channel: Some(message_sender),
         }
     }
-    fn theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context) {
+    /// 异步主题切换器 - 支持动画效果
+    fn async_theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context) {
         ui.horizontal(|ui| {
-            if ui.button("Dark").clicked() {
-                log_info!("Dark theme");
-                // 使用新的消息发送功能
-                self.send_message_to_frontend("Dark theme selected");
+            if ui.button("🌙 Dark Theme").clicked() {
+                log_info!("Switching to dark theme with animation");
+                self.spawn_theme_transition_task("dark".to_string());
             }
-            if ui.button("Light").clicked() {
-                log_info!("Light theme");
-                // 使用新的消息发送功能
-                self.send_message_to_frontend("Light theme selected");
+            if ui.button("☀️ Light Theme").clicked() {
+                log_info!("Switching to light theme with animation");
+                self.spawn_theme_transition_task("light".to_string());
             }
-            if ui.button("Stream Demo").clicked() {
-                log_info!("Starting stream demo");
-                // 演示流式消息功能
-                self.demo_streaming_message();
+            if ui.button("🌊 Stream Demo").clicked() {
+                log_info!("Starting async stream demo");
+                self.spawn_async_stream_demo();
+            }
+            if ui.button("🤖 AI Chat").clicked() {
+                log_info!("Starting AI chat with streaming");
+                self.spawn_ai_chat_task("你好，请介绍一下异步插件的功能".to_string());
+            }
+            if ui.button("📊 Progress Task").clicked() {
+                log_info!("Starting long-running progress task");
+                self.spawn_progress_task();
+            }
+            if ui.button("🔄 Concurrent Tasks").clicked() {
+                log_info!("Starting multiple concurrent tasks");
+                self.spawn_concurrent_tasks();
             }
         });
     }
 
-    fn demo_streaming_message(&self) {
-        // 演示流式消息的使用
-        match self.send_message_stream_start("demo", Some("Streaming demo")) {
-            Ok(stream_id) => {
-                log_info!("Started stream: {}", stream_id);
+    /// 生成唯一任务ID
+    fn generate_task_id(&self) -> String {
+        format!("task_{}", Instant::now().elapsed().as_nanos())
+    }
 
-                // 发送一些示例数据块
-                let chunks = vec![
-                    "这是第一部分数据...",
-                    "这是第二部分数据...",
-                    "这是第三部分数据...",
-                ];
+    /// 启动主题切换任务（带动画效果）
+    fn spawn_theme_transition_task(&mut self, theme: String) {
+        let task_id = self.generate_task_id();
+        let task_id_for_handle = task_id.clone();
+        let plugin_id = self.metadata.id.clone();
+        let active_tasks = self.active_tasks.clone();
+        let task_states = self.task_states.clone();
 
-                for (i, chunk) in chunks.iter().enumerate() {
-                    let is_final = i == chunks.len() - 1;
-                    if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
-                        log_warn!("Failed to send stream chunk: {}", e);
-                        let _ = self.send_message_stream_end(
-                            &stream_id,
-                            false,
-                            Some(&format!("Error: {}", e)),
-                        );
-                        return;
-                    }
+        let handle = spawn(async move {
+            log_info!("Starting theme transition to: {}", theme);
+
+            // 模拟主题切换动画
+            for i in 0..=10 {
+                let progress = i as f32 / 10.0;
+                let message = format!("切换到{}主题... {}%", theme, (progress * 100.0) as u32);
+
+                // 更新任务状态
+                {
+                    let mut states = task_states.write().await;
+                    states.insert(task_id_for_handle.clone(), AsyncTaskState {
+                        task_id: task_id_for_handle.clone(),
+                        status: "running".to_string(),
+                        progress,
+                        message: message.clone(),
+                    });
                 }
 
-                // 结束流式传输
-                if let Err(e) = self.send_message_stream_end(&stream_id, true, None) {
-                    log_warn!("Failed to end stream: {}", e);
-                }
+                // 发送进度消息
+                Self::send_async_message(&plugin_id, &message).await;
 
-                log_info!("Stream demo completed");
+                // 模拟动画延迟
+                sleep(Duration::from_millis(200)).await;
             }
-            Err(e) => {
-                log_warn!("Failed to start stream: {}", e);
+
+            Self::send_async_message(&plugin_id, &format!("✅ {}主题切换完成！", theme)).await;
+            log_info!("Theme transition completed: {}", theme);
+
+            // 清理任务
+            {
+                let mut tasks = active_tasks.write().await;
+                tasks.remove(&task_id_for_handle);
+                let mut states = task_states.write().await;
+                states.remove(&task_id_for_handle);
             }
+        });
+
+        // 保存任务句柄
+        if let Ok(mut tasks) = self.active_tasks.try_write() {
+            tasks.insert(task_id, handle);
         }
     }
 
-    /// 模拟AI对话流式输出
-    fn simulate_ai_response(&self, user_message: &str) {
-        log_info!("Simulating AI response for: {}", user_message);
+    /// 启动异步流式演示
+    fn spawn_async_stream_demo(&mut self) {
+        let task_id = self.generate_task_id();
+        let task_id_for_handle = task_id.clone();
+        let plugin_id = self.metadata.id.clone();
+        let active_tasks = self.active_tasks.clone();
 
-        // 准备AI回答内容
-        let ai_responses = vec![
-            "你好！我是一个示例AI助手插件。",
-            "我可以帮助你演示流式输出的效果，就像真正的AI对话一样。",
-            "这个功能使用了tokio异步运行时来实现逐字显示的效果。",
-            "每个字符都会有随机的延迟，模拟真实的AI思考和生成过程。",
-            "你可以看到文字是如何一个字一个字地出现的，这就是流式输出的魅力！",
-            "希望这个演示对你有帮助。如果你有其他问题，随时可以问我。",
-        ];
+        let handle = spawn(async move {
+            log_info!("Starting async stream demo");
 
-        // 随机选择一个回答
+            // 模拟流式数据生成
+            let data_chunks = vec![
+                "🚀 初始化异步流...",
+                "📡 建立数据连接...",
+                "🔄 开始数据传输...",
+                "📊 处理数据块 1/5...",
+                "📊 处理数据块 2/5...",
+                "📊 处理数据块 3/5...",
+                "📊 处理数据块 4/5...",
+                "📊 处理数据块 5/5...",
+                "✅ 流式传输完成！",
+            ];
+
+            for (i, chunk) in data_chunks.iter().enumerate() {
+                Self::send_async_message(&plugin_id, chunk).await;
+
+                // 随机延迟模拟真实数据处理
+                let delay = rand::thread_rng().gen_range(300..800);
+                sleep(Duration::from_millis(delay)).await;
+
+                log_info!("Sent chunk {}/{}: {}", i + 1, data_chunks.len(), chunk);
+            }
+
+            // 清理任务
+            {
+                let mut tasks = active_tasks.write().await;
+                tasks.remove(&task_id_for_handle);
+            }
+        });
+
+        if let Ok(mut tasks) = self.active_tasks.try_write() {
+            tasks.insert(task_id, handle);
+        }
+    }
+
+    /// 启动AI聊天任务
+    fn spawn_ai_chat_task(&mut self, user_message: String) {
+        let task_id = self.generate_task_id();
+        let task_id_for_handle = task_id.clone();
+        let plugin_id = self.metadata.id.clone();
+        let active_tasks = self.active_tasks.clone();
+
+        // 预生成随机数以避免Send问题
         let mut rng = rand::thread_rng();
-        let selected_response = ai_responses[rng.gen_range(0..ai_responses.len())];
+        let ai_responses = vec![
+            "🤖 你好！我是一个完全异步的AI助手插件。",
+            "⚡ 我使用tokio运行时来处理所有操作，包括这个对话。",
+            "🔄 我可以同时处理多个任务，而不会阻塞用户界面。",
+            "📡 每个字符都是通过异步流式传输发送的。",
+            "🚀 这展示了异步插件架构的强大功能！",
+            "💡 你可以同时启动多个任务来测试并发能力。",
+        ];
+        let selected_index = rng.gen_range(0..ai_responses.len());
+        let selected_response = ai_responses[selected_index].to_string();
 
-        // 开始流式传输
-        match self.send_message_stream_start("ai_chat", Some("AI回答")) {
-            Ok(stream_id) => {
-                log_info!("Started AI chat stream: {}", stream_id);
-
-                // 克隆必要的数据用于异步任务
-                let response_text = selected_response.to_string();
-                let stream_id_clone = stream_id.clone();
-
-                // 创建一个简化的插件元数据用于异步任务
-                let plugin_metadata = self.get_metadata();
-
-                // 启动异步任务进行流式输出
-                tokio::spawn(async move {
-                    Self::async_ai_response(plugin_metadata, stream_id_clone, response_text).await;
-                });
-            }
-            Err(e) => {
-                log_warn!("Failed to start AI chat stream: {}", e);
-            }
-        }
-    }
-
-    /// 异步执行AI回答的流式输出
-    async fn async_ai_response(
-        plugin_metadata: PluginMetadata,
-        stream_id: String,
-        response_text: String,
-    ) {
-        let mut current_text = String::new();
-        let chars: Vec<char> = response_text.chars().collect();
-
-        // 预生成所有延迟时间，避免在异步任务中使用thread_rng
-        let delays: Vec<u64> = (0..chars.len())
-            .map(|_| {
-                use rand::Rng;
-                let mut rng = rand::thread_rng();
-                rng.gen_range(50..200)
-            })
+        // 预生成所有延迟时间
+        let delays: Vec<u64> = (0..selected_response.chars().count())
+            .map(|_| rng.gen_range(50..150))
             .collect();
 
-        for (i, &char) in chars.iter().enumerate() {
-            current_text.push(char);
+        let handle = spawn(async move {
+            log_info!("Starting AI chat for message: {}", user_message);
 
-            // 模拟打字效果，使用预生成的延迟时间
-            let delay = delays[i];
-            sleep(Duration::from_millis(delay)).await;
+            // 逐字符流式输出
+            let mut current_text = String::new();
+            for (i, char) in selected_response.chars().enumerate() {
+                current_text.push(char);
 
-            let is_final = i == chars.len() - 1;
+                // 发送当前累积的文本
+                Self::send_async_message(&plugin_id, &current_text).await;
 
-            // 直接使用底层API发送数据块
-            let data = StreamMessageData::Data(StreamDataData {
-                stream_id: stream_id.clone(),
-                chunk: current_text.clone(),
-                is_final,
-            });
-
-            let wrapper = json!({
-                "type": "stream_data",
-                "plugin_id": plugin_metadata.id,
-                "data": data,
-                "timestamp": std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64
-            });
-
-            if !send_to_frontend("plugin-stream", &wrapper.to_string()) {
-                log_warn!("Failed to send stream chunk");
-                break;
+                // 模拟AI思考延迟
+                if i < delays.len() {
+                    sleep(Duration::from_millis(delays[i])).await;
+                }
             }
-        }
 
-        // 结束流式传输
-        let end_data = StreamMessageData::End(StreamEndData {
-            stream_id: stream_id.clone(),
-            success: true,
-            error: None,
+            log_info!("AI chat completed");
+
+            // 清理任务
+            {
+                let mut tasks = active_tasks.write().await;
+                tasks.remove(&task_id_for_handle);
+            }
         });
 
-        let wrapper = json!({
-            "type": "stream_end",
-            "plugin_id": plugin_metadata.id,
-            "data": end_data,
+        if let Ok(mut tasks) = self.active_tasks.try_write() {
+            tasks.insert(task_id, handle);
+        }
+    }
+
+    /// 启动进度任务
+    fn spawn_progress_task(&mut self) {
+        let task_id = self.generate_task_id();
+        let task_id_for_handle = task_id.clone();
+        let plugin_id = self.metadata.id.clone();
+        let active_tasks = self.active_tasks.clone();
+        let task_states = self.task_states.clone();
+
+        let handle = spawn(async move {
+            log_info!("Starting progress task");
+
+            for i in 0..=100 {
+                let progress = i as f32 / 100.0;
+                let message = format!("📊 处理进度: {}% - {}", i,
+                    match i {
+                        0..=20 => "初始化中...",
+                        21..=40 => "加载数据...",
+                        41..=60 => "处理数据...",
+                        61..=80 => "分析结果...",
+                        81..=99 => "生成报告...",
+                        100 => "完成！",
+                        _ => "处理中...",
+                    }
+                );
+
+                // 更新任务状态
+                {
+                    let mut states = task_states.write().await;
+                    states.insert(task_id_for_handle.clone(), AsyncTaskState {
+                        task_id: task_id_for_handle.clone(),
+                        status: if i == 100 { "completed".to_string() } else { "running".to_string() },
+                        progress,
+                        message: message.clone(),
+                    });
+                }
+
+                Self::send_async_message(&plugin_id, &message).await;
+
+                // 模拟处理时间
+                sleep(Duration::from_millis(100)).await;
+            }
+
+            log_info!("Progress task completed");
+
+            // 清理任务
+            {
+                let mut tasks = active_tasks.write().await;
+                tasks.remove(&task_id_for_handle);
+                let mut states = task_states.write().await;
+                states.remove(&task_id_for_handle);
+            }
+        });
+
+        if let Ok(mut tasks) = self.active_tasks.try_write() {
+            tasks.insert(task_id, handle);
+        }
+    }
+
+    /// 启动并发任务演示
+    fn spawn_concurrent_tasks(&mut self) {
+        let plugin_id = self.metadata.id.clone();
+        let active_tasks = self.active_tasks.clone();
+
+        let handle = spawn(async move {
+            log_info!("Starting concurrent tasks demo");
+
+            Self::send_async_message(&plugin_id, "🔄 启动并发任务演示...").await;
+
+            // 创建多个并发任务
+            let task1 = Self::simulate_network_request("API-1", 1000);
+            let task2 = Self::simulate_network_request("API-2", 1500);
+            let task3 = Self::simulate_network_request("API-3", 800);
+            let task4 = Self::simulate_file_processing("file.txt", 1200);
+
+            // 并发执行所有任务
+            let results = tokio::join!(task1, task2, task3, task4);
+
+            Self::send_async_message(&plugin_id, &format!(
+                "✅ 所有并发任务完成！结果: {:?}",
+                (results.0, results.1, results.2, results.3)
+            )).await;
+
+            log_info!("Concurrent tasks completed");
+
+            // 清理任务
+            {
+                let mut tasks = active_tasks.write().await;
+                tasks.retain(|_, handle| !handle.is_finished());
+            }
+        });
+
+        if let Ok(mut tasks) = self.active_tasks.try_write() {
+            tasks.insert(self.generate_task_id(), handle);
+        }
+    }
+
+    /// 异步发送消息到前端
+    async fn send_async_message(plugin_id: &str, message: &str) {
+        let _payload = json!({
+            "type": "plugin_message",
+            "plugin_id": plugin_id,
+            "content": message,
+            "message_type": "normal",
             "timestamp": std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_millis() as u64
+                .as_millis()
         });
 
-        if send_to_frontend("plugin-stream", &wrapper.to_string()) {
-            log_info!("AI chat stream completed successfully");
-        } else {
-            log_warn!("Failed to end stream properly");
+        // 模拟异步发送
+        tokio::task::yield_now().await;
+
+        // 这里应该调用实际的前端发送函数
+        // 在实际实现中，可以使用 send_to_frontend("plugin-message", &payload.to_string())
+        log_info!("Async message sent: {}", message);
+        println!("📤 [{}] {}", plugin_id, message);
+    }
+
+    /// 模拟网络请求
+    async fn simulate_network_request(api_name: &str, delay_ms: u64) -> String {
+        log_info!("Starting network request to {}", api_name);
+        sleep(Duration::from_millis(delay_ms)).await;
+        let result = format!("✅ {} 请求完成 ({}ms)", api_name, delay_ms);
+        log_info!("{}", result);
+        result
+    }
+
+    /// 模拟文件处理
+    async fn simulate_file_processing(filename: &str, delay_ms: u64) -> String {
+        log_info!("Starting file processing: {}", filename);
+        sleep(Duration::from_millis(delay_ms)).await;
+        let result = format!("📁 {} 处理完成 ({}ms)", filename, delay_ms);
+        log_info!("{}", result);
+        result
+    }
+
+    /// 获取活跃任务状态
+    async fn get_active_task_states(&self) -> Vec<AsyncTaskState> {
+        let states = self.task_states.read().await;
+        states.values().cloned().collect()
+    }
+
+    /// 取消所有活跃任务
+    async fn cancel_all_tasks(&self) {
+        {
+            let mut tasks = self.active_tasks.write().await;
+            for (task_id, handle) in tasks.drain() {
+                handle.abort();
+                log_info!("Cancelled task: {}", task_id);
+            }
+        }
+
+        {
+            let mut states = self.task_states.write().await;
+            states.clear();
         }
     }
+
 }
 
 impl PluginHandler for ExamplePlugin {
-    fn update_ui(&mut self, ctx: &Context, ui: &mut Ui) {
-        // Simplified UI to test memory safety
-        ui.label("Test Plugin");
-        ui.label("Simple test without complex components");
+    fn update_ui_async<'a>(&'a mut self, ctx: &'a Context, ui: &'a mut Ui) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+            // 异步UI更新 - 现在可以在UI更新中使用await
+            ui.label("🚀 异步插件 - 完全支持tokio");
+            ui.label("⚡ UI更新现在是异步的！");
 
-        self.theme_switcher(ui, ctx);
+            // 异步主题切换器
+            self.async_theme_switcher(ui, ctx);
 
-        if ui.button("AI Chat Demo").clicked() {
-            log_info!("Starting AI chat demo");
-            // 演示AI对话流式输出
-            self.simulate_ai_response("你好，请介绍一下你自己");
-        }
+            // 显示实时任务状态（异步获取）
+            let task_count = {
+                let tasks = self.active_tasks.read().await;
+                tasks.len()
+            };
+            ui.label(&format!("🔄 活跃任务数量: {}", task_count));
 
-        let text_response = ui.text_edit_singleline(&mut self.name);
-        if text_response.changed() {
-            log_info!("Text field updated: {}", self.name);
-        }
+            // 显示任务状态详情
+            let task_states = {
+                let states = self.task_states.read().await;
+                states.values().cloned().collect::<Vec<_>>()
+            };
 
-        let combo_response = ui.combo_box(
-            vec![
-                "Option 1".to_string(),
-                "Option 2".to_string(),
-                "Option 3".to_string(),
-            ],
-            &mut self.selected_option,
-            "Select an option",
-        );
-        if combo_response.clicked() {
-            log_info!("Combo box updated: {:?}", self.selected_option);
-        }
-
-        // 开关组件示例 - 在水平布局中使用
-        ui.horizontal(|ui| {
-            ui.label("Dark Mode:");
-            let toggle_response = ui.toggle(&mut self.dark_mode);
-            if toggle_response.changed() {
-                log_info!("Dark mode toggled: {}", self.dark_mode);
+            if !task_states.is_empty() {
+                ui.label("📊 任务状态详情:");
+                for state in task_states.iter().take(3) { // 只显示前3个任务
+                    ui.label(&format!("  • {} - {:.1}% - {}",
+                        state.task_id.chars().take(8).collect::<String>(),
+                        state.progress * 100.0,
+                        state.status
+                    ));
+                }
+                if task_states.len() > 3 {
+                    ui.label(&format!("  ... 还有 {} 个任务", task_states.len() - 3));
+                }
             }
-        });
 
-        ui.label(&format!("Name: {}", self.name));
-        ui.label(&format!("Age: {}", self.age));
-        ui.label(&format!(
-            "Selected Option: {}",
-            self.selected_option.as_ref().unwrap_or(&"None".to_string())
-        ));
-        ui.label(&format!("Dark Mode: {}", self.dark_mode));
+            // AI聊天按钮 - 现在可以直接在UI中启动异步任务
+            if ui.button("🤖 AI Chat Demo").clicked() {
+                log_info!("Starting AI chat demo from async UI");
+                self.spawn_ai_chat_task("你好，这是从异步UI启动的对话".to_string());
+            }
+
+            // 文本输入 - 异步处理变化
+            let text_response = ui.text_edit_singleline(&mut self.name);
+            if text_response.changed() {
+                log_info!("Text field updated asynchronously: {}", self.name);
+
+                // 可以在这里执行异步操作，比如保存到数据库
+                tokio::task::yield_now().await; // 模拟异步操作
+            }
+
+            // 下拉框 - 异步处理选择
+            let combo_response = ui.combo_box(
+                vec![
+                    "异步选项 1".to_string(),
+                    "异步选项 2".to_string(),
+                    "异步选项 3".to_string(),
+                ],
+                &mut self.selected_option,
+                "选择一个异步选项",
+            );
+            if combo_response.clicked() {
+                log_info!("Combo box updated asynchronously: {:?}", self.selected_option);
+
+                // 异步处理选择变化
+                tokio::task::yield_now().await;
+            }
+
+            // 开关组件 - 异步主题切换
+            ui.horizontal(|ui| {
+                ui.label("异步暗色模式:");
+                let toggle_response = ui.toggle(&mut self.dark_mode);
+                if toggle_response.changed() {
+                    log_info!("Dark mode toggled asynchronously: {}", self.dark_mode);
+
+                    // 启动异步主题切换任务
+                    let theme = if self.dark_mode { "dark" } else { "light" };
+                    self.spawn_theme_transition_task(theme.to_string());
+                }
+            });
+
+            // 显示当前状态
+            ui.label("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            ui.label(&format!("📝 名称: {}", self.name));
+            ui.label(&format!("🎂 年龄: {}", self.age));
+            ui.label(&format!(
+                "📋 选择的选项: {}",
+                self.selected_option.as_ref().unwrap_or(&"无".to_string())
+            ));
+            ui.label(&format!("🌙 暗色模式: {}", if self.dark_mode { "开启" } else { "关闭" }));
+
+            // 异步任务控制按钮
+            ui.label("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            ui.label("🎮 异步任务控制:");
+
+            // 取消所有任务按钮 - 异步执行
+            if ui.button("❌ 取消所有任务").clicked() {
+                log_info!("Cancelling all active tasks asynchronously");
+
+                // 直接在UI中执行异步取消操作
+                {
+                    let mut tasks = self.active_tasks.write().await;
+                    for (task_id, handle) in tasks.drain() {
+                        handle.abort();
+                        log_info!("Cancelled task: {}", task_id);
+                    }
+                }
+                {
+                    let mut states = self.task_states.write().await;
+                    states.clear();
+                }
+            }
+
+            // 刷新状态按钮 - 演示异步UI刷新
+            if ui.button("🔄 刷新状态").clicked() {
+                log_info!("Refreshing UI state asynchronously");
+
+                // 模拟异步刷新操作
+                sleep(Duration::from_millis(10)).await;
+
+                // 可以在这里更新插件状态
+                self.age += 1; // 示例：增加年龄
+            }
+        })
     }
 
     // 挂载插件的时候调用

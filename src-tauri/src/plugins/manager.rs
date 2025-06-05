@@ -1,7 +1,7 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interface::{
-    log_error, log_info, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
+    log_error, log_info, log_warn, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
     pluginui::{Context, Ui}
 };
 use std::collections::HashMap;
@@ -219,7 +219,7 @@ impl PluginManager {
             Err("插件挂载失败".into())
         };
 
-        // 初始化UI
+        // 初始化UI - 现在是异步的
         let context = Context::new(plugin_id.to_string());
         let ui_arc = Ui::new(plugin_id.to_string());
         let mut ui = ui_arc.lock().unwrap();
@@ -227,13 +227,18 @@ impl PluginManager {
         // 保存UI实例的引用以便后续事件处理
         let ui_instance_ref = Arc::clone(&ui_arc);
 
-        unsafe {
+        // 异步调用update_ui
+        let update_result = unsafe {
             ((*handler).update_ui)(
                 (*handler).plugin_ptr,
                 &context as *const Context as *const std::ffi::c_void,
                 &mut *ui as *mut Ui as *mut std::ffi::c_void
             )
         };
+
+        if update_result != 0 {
+            log_warn!("异步UI初始化返回非零值: {}", update_result);
+        }
 
         let ui_data = match serde_json::to_string(&ui.get_components()) {
             Ok(json) => json,
@@ -502,6 +507,7 @@ impl PluginManager {
                         // 只清除组件，保留事件状态用于本次update_ui
                         ui.clear_components_only();
 
+                        // 异步调用update_ui
                         let update_ui_result = unsafe {
                             ((*instance.handler).update_ui)(
                                 (*instance.handler).plugin_ptr,
