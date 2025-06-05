@@ -34,6 +34,9 @@ impl PluginLoader {
         {
             if entry.file_type().is_dir() {
                 if let Some(plugin_metadata) = self.load_plugin_from_directory(entry.path()) {
+                    if plugin_metadata.disabled {
+                        continue;
+                    }
                     plugins.push(plugin_metadata);
                 }
             }
@@ -77,8 +80,8 @@ impl PluginLoader {
                 let library_path = self.find_library_file(plugin_dir, &config.plugin.library);
 
                 Some(PluginMetadata {
-                    id: config.get_id(),
-                    disabled: false, // 默认启用，后续可以从配置中读取
+                    id: config.plugin.id,
+                    disabled: config.plugin.disabled, // 默认启用，后续可以从配置中读取
                     name: config.plugin.name,
                     description: config.plugin.description,
                     version: config.plugin.version,

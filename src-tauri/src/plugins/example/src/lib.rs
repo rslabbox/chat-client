@@ -16,8 +16,8 @@ impl ExamplePlugin {
     // 导出插件的时候调用
     fn new() -> Self {
         Self {
-            name: "Arthur".to_owned(),
-            age: 42,
+            name: "Debin".to_owned(),
+            age: 32,
             selected_option: None,
             dark_mode: false,
             metadata: PluginMetadata{

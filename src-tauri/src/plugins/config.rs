@@ -11,6 +11,8 @@ pub struct PluginConfig {
 /// 插件基本信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginInfo {
+    pub id: String,
+    pub disabled: bool,
     pub name: String,
     pub version: String,
     pub description: String,
@@ -24,10 +26,5 @@ impl PluginConfig {
         let content = std::fs::read_to_string(path)?;
         let config: PluginConfig = toml::from_str(&content)?;
         Ok(config)
-    }
-
-    /// 获取插件 ID（基于名称生成）
-    pub fn get_id(&self) -> String {
-        self.plugin.name.to_lowercase().replace(' ', "_")
     }
 }

@@ -6,9 +6,6 @@ version = "1.0.0"
 description = "这是一个示例插件，展示插件系统的基本功能"
 author = "Your Name"
 library = "example"
-
-[metadata]
-# 插件特定的元数据
 category = "example"
 tags = ["demo", "sample"]
 min_app_version = "0.1.0"
