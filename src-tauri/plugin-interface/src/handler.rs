@@ -1,12 +1,8 @@
 use crate::callbacks::{HostCallbacks, set_host_callbacks};
 use crate::metadata::PluginMetadata;
-use crate::send_to_frontend;
-
 use crate::pluginui::{Context,Ui};
 
-pub fn send_message_to_frontend(plugin_id: &str, payload: &str) -> bool {
-    send_to_frontend("plugin-message-response", &format!("{{\"plugin\": \"{}\", \"response\": \"{}\"}}", plugin_id, payload))
-}
+
 /// 插件处理器 trait
 /// 定义了插件的生命周期方法
 pub trait PluginHandler: Send + Sync {

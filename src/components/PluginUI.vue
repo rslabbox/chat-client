@@ -104,14 +104,8 @@ const error = ref<string>('')
 const textFieldValues = reactive<Record<string, string>>({})
 const selectValues = reactive<Record<string, string | number>>({})
 
-// 调试信息
-const debugInfo = ref<string[]>([])
-const eventCount = ref(0)
-
 // 事件监听器
 let unlistenPluginUiUpdate: UnlistenFn | null = null
-
-
 
 // 加载插件UI
 const loadPluginUI = async (pluginId: string) => {

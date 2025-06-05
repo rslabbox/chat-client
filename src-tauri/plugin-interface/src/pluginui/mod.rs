@@ -5,12 +5,10 @@
 
 mod components;
 mod context;
-mod traits;
 mod ui;
 
-pub use components::*;
+pub use components::{UiComponent, Response, UiComponentType};
 pub use context::{Context, CreationContext};
-pub use traits::PluginUiApp;
 pub use ui::Ui;
 
 // Re-export commonly used macros

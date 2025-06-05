@@ -1,8 +1,6 @@
 
 use plugin_interface::{
-    create_plugin_interface_from_handler, log_info, log_warn,
-    pluginui::{Context, Ui},
-    PluginHandler, PluginInterface, PluginMetadata,
+    create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui}, PluginHandler, PluginInterface, PluginMessage, PluginMetadata
 };
 
 /// 示例插件实现 - 使用新的UI框架
@@ -36,9 +34,13 @@ impl ExamplePlugin {
         ui.horizontal(|ui| {
             if ui.button("Dark").clicked() {
                 log_info!("Dark theme");
+                // 使用新的消息发送功能
+                self.send_message_to_frontend("Dark theme selected");
             }
             if ui.button("Light").clicked() {
                 log_info!("Light theme");
+                // 使用新的消息发送功能
+                self.send_message_to_frontend("Light theme selected");
             }
         });
     }
@@ -70,7 +72,7 @@ impl PluginHandler for ExamplePlugin {
     // 挂载插件的时候调用
     fn on_mount(&mut self, metadata: &PluginMetadata) -> Result<(), Box<dyn std::error::Error>> {
         log_info!("[{}] Plugin mount successfully", self.metadata.name);
-        log_info!("Received metadata: id={}, name={}, version={}",
+        log_info!("Config Metadata: id={}, name={}, version={}",
                   metadata.id, metadata.name, metadata.version);
         self.metadata = metadata.clone();
         Ok(())
