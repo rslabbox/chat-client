@@ -10,6 +10,21 @@ export interface PluginMessage {
   type: 'sent' | 'received'
   pluginId: string
   sessionId: string
+  messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info'
+  isStreaming?: boolean
+  streamId?: string
+}
+
+export interface StreamMessage {
+  id: string
+  streamId: string
+  pluginId: string
+  sessionId: string
+  content: string
+  timestamp: Date
+  status: 'active' | 'paused' | 'completed' | 'error' | 'cancelled'
+  streamType?: string
+  metadata?: string
 }
 
 export interface ChatSession {
@@ -29,6 +44,10 @@ export interface ChatSessions {
   [sessionId: string]: ChatSession
 }
 
+export interface StreamMessages {
+  [streamId: string]: StreamMessage
+}
+
 const STORAGE_KEY = 'chat-client-messages'
 const SESSIONS_STORAGE_KEY = 'chat-client-sessions'
 
@@ -36,6 +55,7 @@ export const useMessageStore = defineStore('messages', () => {
   // 状态
   const messagesByPlugin = ref<PluginMessages>({})
   const chatSessions = ref<ChatSessions>({})
+  const streamMessages = ref<StreamMessages>({})
   const currentSessionId = ref<string | null>(null)
   const isLoading = ref(false)
 
@@ -52,6 +72,8 @@ export const useMessageStore = defineStore('messages', () => {
 
     const currentPluginId = pluginStore.currentPluginId
     if (!currentPluginId) return []
+
+    console.log(messagesByPlugin.value)
 
     const pluginMessages = messagesByPlugin.value[currentPluginId] || []
     return pluginMessages.filter(msg => msg.sessionId === sessionId)
@@ -145,7 +167,7 @@ export const useMessageStore = defineStore('messages', () => {
   }
 
   // 添加消息
-  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string) => {
+  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info') => {
     const targetPluginId = pluginId || pluginStore.currentPluginId
     if (!targetPluginId) {
       console.warn('无法添加消息：没有指定插件ID且当前没有活跃插件')
@@ -169,7 +191,8 @@ export const useMessageStore = defineStore('messages', () => {
       timestamp: new Date(),
       type,
       pluginId: targetPluginId,
-      sessionId
+      sessionId,
+      messageType: messageType || 'normal'
     }
 
     // 确保插件消息数组存在
@@ -219,6 +242,127 @@ export const useMessageStore = defineStore('messages', () => {
   // 获取指定插件的消息
   const getPluginMessages = (pluginId: string): PluginMessage[] => {
     return messagesByPlugin.value[pluginId] || []
+  }
+
+  // 流式消息处理方法
+  const handleStreamStart = (message: any) => {
+    const { plugin_id, data } = message
+    const { stream_id, stream_type, metadata } = data
+    const sessionId = currentSessionId.value
+    if (!sessionId) return
+
+    const streamMessage: StreamMessage = {
+      id: generateMessageId(),
+      streamId: stream_id,
+      pluginId: plugin_id,
+      sessionId,
+      content: '',
+      timestamp: new Date(),
+      status: 'active',
+      streamType: stream_type,
+      metadata
+    }
+
+    streamMessages.value[stream_id] = streamMessage
+
+    // 在消息列表中添加一个占位消息
+    const placeholderMessage: PluginMessage = {
+      id: generateMessageId(),
+      content: '',
+      timestamp: new Date(),
+      type: 'received',
+      pluginId: plugin_id,
+      sessionId,
+      messageType: 'info',
+      isStreaming: true,
+      streamId: stream_id
+    }
+
+    if (!messagesByPlugin.value[plugin_id]) {
+      messagesByPlugin.value[plugin_id] = []
+    }
+    messagesByPlugin.value[plugin_id].push(placeholderMessage)
+    saveToStorage()
+  }
+
+  const handleStreamData = (message: any) => {
+    const { data } = message
+    const { stream_id, chunk, is_final } = data
+    const streamMessage = streamMessages.value[stream_id]
+    if (!streamMessage) return
+
+    // 更新流消息内容
+    streamMessage.content += chunk
+    streamMessage.timestamp = new Date()
+
+    if (is_final) {
+      streamMessage.status = 'completed'
+    }
+
+    // 更新对应的占位消息
+    const pluginMessages = messagesByPlugin.value[streamMessage.pluginId] || []
+    const placeholderIndex = pluginMessages.findIndex(msg => msg.streamId === stream_id)
+    if (placeholderIndex !== -1) {
+      pluginMessages[placeholderIndex].content = streamMessage.content
+      if (is_final) {
+        pluginMessages[placeholderIndex].isStreaming = false
+      }
+    }
+
+    saveToStorage()
+  }
+
+  const handleStreamEnd = (message: any) => {
+    const { data } = message
+    const { stream_id, success, error } = data
+    const streamMessage = streamMessages.value[stream_id]
+    if (!streamMessage) return
+
+    streamMessage.status = success ? 'completed' : 'error'
+    streamMessage.timestamp = new Date()
+
+    // 更新对应的占位消息
+    const pluginMessages = messagesByPlugin.value[streamMessage.pluginId] || []
+    const placeholderIndex = pluginMessages.findIndex(msg => msg.streamId === stream_id)
+    if (placeholderIndex !== -1) {
+      pluginMessages[placeholderIndex].isStreaming = false
+      if (!success && error) {
+        pluginMessages[placeholderIndex].content += `\n[错误: ${error}]`
+        pluginMessages[placeholderIndex].messageType = 'error'
+      }
+    }
+
+    saveToStorage()
+  }
+
+  const handleStreamControl = (message: any, action: 'pause' | 'resume' | 'cancel') => {
+    const { data } = message
+    const { stream_id } = data
+    const streamMessage = streamMessages.value[stream_id]
+    if (!streamMessage) return
+
+    switch (action) {
+      case 'pause':
+        streamMessage.status = 'paused'
+        break
+      case 'resume':
+        streamMessage.status = 'active'
+        break
+      case 'cancel':
+        streamMessage.status = 'cancelled'
+        // 更新对应的占位消息
+        const pluginMessages = messagesByPlugin.value[streamMessage.pluginId] || []
+        const placeholderIndex = pluginMessages.findIndex(msg => msg.streamId === stream_id)
+        if (placeholderIndex !== -1) {
+          pluginMessages[placeholderIndex].isStreaming = false
+          pluginMessages[placeholderIndex].content += '\n[已取消]'
+          pluginMessages[placeholderIndex].messageType = 'warning'
+        }
+        break
+    }
+
+    streamMessage.timestamp = new Date()
+    saveToStorage()
   }
 
   // 获取所有插件的消息数量统计
@@ -396,7 +540,7 @@ export const useMessageStore = defineStore('messages', () => {
       })
       eventListeners.value.push(unlistenMessageReceived)
 
-      // 监听插件消息响应事件
+      // 监听插件消息响应事件（旧协议兼容）
       const unlistenMessageResponse = await listen('plugin-message-response', (event) => {
         try {
           const data = JSON.parse(event.payload as string)
@@ -406,6 +550,50 @@ export const useMessageStore = defineStore('messages', () => {
         }
       })
       eventListeners.value.push(unlistenMessageResponse)
+
+      // 监听新的插件消息事件
+      const unlistenPluginMessage = await listen('plugin-message', (event) => {
+        console.log('Plugin message event:', event.payload)
+        try {
+          const data = JSON.parse(event.payload as string)
+          addMessage(data.content, 'received', data.plugin_id, data.message_type)
+        } catch (e) {
+          console.error('Failed to parse plugin-message event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenPluginMessage)
+
+      // 监听流式消息事件
+      const unlistenPluginStream = await listen('plugin-stream', (event) => {
+        try {
+          const data = JSON.parse(event.payload as string)
+          switch (data.type) {
+            case 'stream_start':
+              handleStreamStart(data)
+              break
+            case 'stream_data':
+              handleStreamData(data)
+              break
+            case 'stream_end':
+              handleStreamEnd(data)
+              break
+            case 'stream_pause':
+              handleStreamControl(data, 'pause')
+              break
+            case 'stream_resume':
+              handleStreamControl(data, 'resume')
+              break
+            case 'stream_cancel':
+              handleStreamControl(data, 'cancel')
+              break
+            default:
+              console.warn('Unknown stream message type:', data.type)
+          }
+        } catch (e) {
+          console.error('Failed to parse plugin-stream event:', e)
+        }
+      })
+      eventListeners.value.push(unlistenPluginStream)
     } catch (error) {
       console.error('Failed to setup event listeners:', error)
     }
@@ -435,6 +623,7 @@ export const useMessageStore = defineStore('messages', () => {
     // 状态
     messagesByPlugin,
     chatSessions,
+    streamMessages,
     currentSessionId,
     isLoading,
 
@@ -451,6 +640,12 @@ export const useMessageStore = defineStore('messages', () => {
     sendMessage,
     loadFromStorage,
     saveToStorage,
+
+    // 流式消息方法
+    handleStreamStart,
+    handleStreamData,
+    handleStreamEnd,
+    handleStreamControl,
 
     // 会话方法
     createNewSession,

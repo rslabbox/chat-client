@@ -1,6 +1,7 @@
 
 use plugin_interface::{
-    create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui}, PluginHandler, PluginInterface, PluginMessage, PluginMetadata
+    create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui},
+    PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginMetadata
 };
 
 /// 示例插件实现 - 使用新的UI框架
@@ -44,7 +45,47 @@ impl ExamplePlugin {
                 // 使用新的消息发送功能
                 self.send_message_to_frontend("Light theme selected");
             }
+            if ui.button("Stream Demo").clicked() {
+                log_info!("Starting stream demo");
+                // 演示流式消息功能
+                self.demo_streaming_message();
+            }
         });
+    }
+
+    fn demo_streaming_message(&self) {
+        // 演示流式消息的使用
+        match self.send_message_stream_start("demo", Some("Streaming demo")) {
+            Ok(stream_id) => {
+                log_info!("Started stream: {}", stream_id);
+
+                // 发送一些示例数据块
+                let chunks = vec![
+                    "这是第一部分数据...",
+                    "这是第二部分数据...",
+                    "这是第三部分数据...",
+                ];
+
+                for (i, chunk) in chunks.iter().enumerate() {
+                    let is_final = i == chunks.len() - 1;
+                    if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
+                        log_warn!("Failed to send stream chunk: {}", e);
+                        let _ = self.send_message_stream_end(&stream_id, false, Some(&format!("Error: {}", e)));
+                        return;
+                    }
+                }
+
+                // 结束流式传输
+                if let Err(e) = self.send_message_stream_end(&stream_id, true, None) {
+                    log_warn!("Failed to end stream: {}", e);
+                }
+
+                log_info!("Stream demo completed");
+            }
+            Err(e) => {
+                log_warn!("Failed to start stream: {}", e);
+            }
+        }
     }
 }
 
@@ -116,6 +157,8 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn get_metadata(&self) -> PluginMetadata {
+        log_info!("Config Metadata: id={}, name={}, version={}",
+                  self.metadata.id, self.metadata.name, self.metadata.version);
         self.metadata.clone()
     }
 }
