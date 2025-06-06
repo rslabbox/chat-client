@@ -46,7 +46,7 @@
 
 1. **克隆仓库**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/luodeb/chat-client.git
    cd chat-client
    ```
 
@@ -57,7 +57,9 @@
 
 3. **开发模式运行**
    ```bash
-   pnpm tauri dev
+   cd ./src-tauri
+   cargo build --workspace
+   pnpm tauri dev  
    ```
 
 4. **生产环境构建**

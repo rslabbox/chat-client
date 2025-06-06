@@ -46,7 +46,7 @@ A modern, extensible chat client built with Tauri, Vue 3, and Rust. Features a p
 
 1. **Clone the repository**  
    ```bash  
-   git clone <repository-url>  
+   git clone https://github.com/luodeb/chat-client.git
    cd chat-client  
    ```  
 
@@ -57,6 +57,8 @@ A modern, extensible chat client built with Tauri, Vue 3, and Rust. Features a p
 
 3. **Run in dev mode**  
    ```bash  
+   cd ./src-tauri
+   cargo build --workspace
    pnpm tauri dev  
    ```  
 
