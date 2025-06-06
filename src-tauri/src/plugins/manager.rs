@@ -1,6 +1,6 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
-use plugin_interface::{
+use plugin_interfaces::{
     log_error, log_info,
     pluginui::{Context, Ui},
     CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata,
@@ -218,7 +218,7 @@ impl PluginManager {
 
         // 清理FFI元数据内存
         unsafe {
-            plugin_interface::metadata::free_plugin_metadata_ffi(metadata_ffi);
+            plugin_interfaces::metadata::free_plugin_metadata_ffi(metadata_ffi);
         }
 
         let result: Result<(), Box<dyn std::error::Error>> = if mount_result == 0 {

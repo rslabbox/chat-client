@@ -1,4 +1,4 @@
-use plugin_interface::{
+use plugin_interfaces::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
     PluginHandler, PluginInterface, PluginMessage, PluginMetadata, PluginStreamMessage,
@@ -249,17 +249,17 @@ impl PluginHandler for ExamplePlugin {
         Ok(())
     }
 
-    fn on_dispose(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_dispose(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         log_info!("[{}] Plugin disposed successfully", self.metadata.name);
         Ok(())
     }
 
-    fn on_connect(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         log_info!("[{}] Connected", self.metadata.name);
         Ok(())
     }
 
-    fn on_disconnect(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_disconnect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         log_warn!("[{}] Disconnected", self.metadata.name);
         Ok(())
     }

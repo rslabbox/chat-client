@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use walkdir::WalkDir;
-use plugin_interface::PluginMetadata;
+use plugin_interfaces::PluginMetadata;
 
 use crate::plugins::config::PluginConfig;
 

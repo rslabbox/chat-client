@@ -16,4 +16,4 @@ serde_json = "1"
 tokio = { version = "1.45.1", features = ["full"] }
 
 # 引用插件接口库
-plugin-interface = { path = "../../../plugin-interface" }
+plugin-interfaces = { git = "https://github.com/luodeb/plugin-interfaces.git" }
