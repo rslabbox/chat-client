@@ -3,7 +3,7 @@ mod api;
 pub mod plugins;
 
 // 导入所有 API 命令
-use api::{greet, scan_plugins, mount_plugin, dispose_plugin, connect_plugin, disconnect_plugin, get_plugin_status, get_current_plugin, send_message_to_plugin, get_plugin_ui, handle_plugin_ui_event};
+use api::{greet, scan_plugins, mount_plugin, dispose_plugin, connect_plugin, disconnect_plugin, get_plugin_status, get_current_plugin, send_message_to_plugin, get_plugin_ui, handle_plugin_ui_update, handle_plugin_ui_event};
 
 use plugin_interface::log_info;
 use tauri::{RunEvent, WindowEvent};
@@ -23,6 +23,7 @@ pub fn run() {
             get_current_plugin,
             send_message_to_plugin,
             get_plugin_ui,
+            handle_plugin_ui_update,
             handle_plugin_ui_event
         ])
         .build(tauri::generate_context!())

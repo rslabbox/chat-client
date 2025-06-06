@@ -1,8 +1,6 @@
 use crate::callbacks::{HostCallbacks, set_host_callbacks};
 use crate::metadata::PluginMetadata;
 use crate::pluginui::{Context,Ui};
-use crate::send_to_frontend;
-
 
 /// 插件处理器 trait
 /// 定义了插件的生命周期方法
@@ -35,12 +33,4 @@ pub trait PluginHandler: Send + Sync {
 
     /// 获取插件元数据
     fn get_metadata(&self) -> PluginMetadata;
-
-    fn refresh_ui(&self) -> bool {
-        let plugin_id = self.get_metadata().id;
-        let payload = serde_json::json!({
-                "plugin": plugin_id
-        });
-        send_to_frontend("plugin-ui-updated", &payload.to_string().as_str())
-    } 
 }

@@ -1,13 +1,15 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interface::{
-    log_error, log_info, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
-    pluginui::{Context, Ui}
+    log_error, log_info,
+    pluginui::{Context, Ui},
+    CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata,
+    CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{AppHandle, Emitter};
 
 // 全局AppHandle存储，用于在回调函数中访问
@@ -20,7 +22,7 @@ pub struct PluginInstance {
     pub library: Library,
     pub is_mounted: bool,
     pub is_connected: bool,
-    pub ui_data: Option<String>, // 保存序列化的UI数据
+    pub ui_data: Option<String>,             // 保存序列化的UI数据
     pub ui_instance: Option<Arc<Mutex<Ui>>>, // 保存UI实例以处理事件
 }
 
@@ -78,7 +80,6 @@ impl PluginManager {
                     CStr::from_ptr(event).to_str(),
                     CStr::from_ptr(payload).to_str(),
                 ) {
-
                     // 实现实际的Tauri事件发送
                     if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
                         match app_handle.emit(event_str, payload_str) {
@@ -86,7 +87,11 @@ impl PluginManager {
                                 return true;
                             }
                             Err(e) => {
-                                log_error!("[PLUGIN->FRONTEND] Failed to send event {}: {}", event_str, e);
+                                log_error!(
+                                    "[PLUGIN->FRONTEND] Failed to send event {}: {}",
+                                    event_str,
+                                    e
+                                );
                             }
                         }
                     } else {
@@ -115,7 +120,10 @@ impl PluginManager {
     }
 
     /// 调用其他插件
-    extern "C" fn host_call_other_plugin(plugin_id: *const c_char, message: *const c_char) -> *const c_char {
+    extern "C" fn host_call_other_plugin(
+        plugin_id: *const c_char,
+        message: *const c_char,
+    ) -> *const c_char {
         if !plugin_id.is_null() && !message.is_null() {
             unsafe {
                 if let (Ok(id_str), Ok(_msg_str)) = (
@@ -144,7 +152,7 @@ impl PluginManager {
         let current_plugin_id = {
             let current = self.current_plugin.lock().unwrap();
             current.clone()
-        }; 
+        };
         // 先卸载当前插件
         if let Some(current_id) = current_plugin_id {
             if current_id != plugin_id {
@@ -231,7 +239,7 @@ impl PluginManager {
             ((*handler).update_ui)(
                 (*handler).plugin_ptr,
                 &context as *const Context as *const std::ffi::c_void,
-                &mut *ui as *mut Ui as *mut std::ffi::c_void
+                &mut *ui as *mut Ui as *mut std::ffi::c_void,
             )
         };
 
@@ -286,12 +294,14 @@ impl PluginManager {
 
             // 先断开连接
             if instance.is_connected {
-                let _ = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
+                let _ =
+                    unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
                 instance.is_connected = false;
             }
 
             // 调用 on_dispose
-            let dispose_result = unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
+            let dispose_result =
+                unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
             let result: Result<(), Box<dyn std::error::Error>> = if dispose_result == 0 {
                 Ok(())
             } else {
@@ -340,7 +350,8 @@ impl PluginManager {
                 return Ok(format!("插件 {} 已经连接", instance.metadata.name));
             }
 
-            let connect_result = unsafe { ((*instance.handler).on_connect)((*instance.handler).plugin_ptr) };
+            let connect_result =
+                unsafe { ((*instance.handler).on_connect)((*instance.handler).plugin_ptr) };
             let result: Result<(), Box<dyn std::error::Error>> = if connect_result == 0 {
                 Ok(())
             } else {
@@ -372,7 +383,8 @@ impl PluginManager {
                 return Ok(format!("插件 {} 已经断开连接", instance.metadata.name));
             }
 
-            let disconnect_result = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
+            let disconnect_result =
+                unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
             let result: Result<(), Box<dyn std::error::Error>> = if disconnect_result == 0 {
                 Ok(())
             } else {
@@ -420,7 +432,7 @@ impl PluginManager {
                         let handle_result = ((*instance.handler).handle_message)(
                             (*instance.handler).plugin_ptr,
                             message_cstr.as_ptr(),
-                            &mut result_ptr
+                            &mut result_ptr,
                         );
 
                         if handle_result == 0 && !result_ptr.is_null() {
@@ -469,8 +481,73 @@ impl PluginManager {
         }
     }
 
+    pub fn handle_plugin_ui_update(
+        &self,
+        plugin_id: &str,
+        component_id: &str,
+        value: &str,
+    ) -> Result<bool, String> {
+        let mut instances = self.instances.lock().unwrap();
+
+        if let Some(instance) = instances.get_mut(plugin_id) {
+            if !instance.is_mounted {
+                return Err("插件未挂载".to_string());
+            }
+
+            if let Some(ui_instance) = &instance.ui_instance {
+                // 创建包含UI事件数据的Context
+                let mut ui_event_data = std::collections::HashMap::new();
+                ui_event_data.insert(component_id.to_string(), value.to_string());
+                let context = Context::with_ui_event_data(plugin_id.to_string(), ui_event_data);
+                let mut ui = ui_instance.lock().unwrap();
+
+                // 只清除组件，保留事件状态用于本次update_ui
+                ui.clear_components_only();
+
+                let update_ui_result = unsafe {
+                    ((*instance.handler).update_ui)(
+                        (*instance.handler).plugin_ptr,
+                        &context as *const Context as *const std::ffi::c_void,
+                        &mut *ui as *mut Ui as *mut std::ffi::c_void,
+                    )
+                };
+
+                if update_ui_result == 0 {
+                    // 更新UI数据
+                    let ui_data = match serde_json::to_string(&ui.get_components()) {
+                        Ok(json) => json,
+                        Err(e) => {
+                            log_error!("序列化UI数据失败: {}", e);
+                            "[]".to_string()
+                        }
+                    };
+                    instance.ui_data = Some(ui_data.clone());
+
+                    // 清除事件状态，为下次事件做准备
+                    ui.clear_events();
+
+                    drop(ui); // 释放锁
+                    drop(instances); // 释放instances锁
+
+                    // 发送UI更新事件到前端
+                    let _ = self.notify_plugin_ui_update(plugin_id);
+                }
+                Ok(true)
+            } else {
+                Err("插件未找到".to_string())
+            }
+        } else {
+            return Err("插件未找到".to_string());
+        }
+    }
+
     /// 处理插件UI事件
-    pub fn handle_plugin_ui_event(&self, plugin_id: &str, component_id: &str, value: &str) -> Result<bool, String> {
+    pub fn handle_plugin_ui_event(
+        &self,
+        plugin_id: &str,
+        component_id: &str,
+        value: &str,
+    ) -> Result<bool, String> {
         let mut instances = self.instances.lock().unwrap();
 
         if let Some(instance) = instances.get_mut(plugin_id) {
@@ -493,7 +570,8 @@ impl PluginManager {
                         // 创建包含UI事件数据的Context
                         let mut ui_event_data = std::collections::HashMap::new();
                         ui_event_data.insert(component_id.to_string(), value.to_string());
-                        let context = Context::with_ui_event_data(plugin_id.to_string(), ui_event_data);
+                        let context =
+                            Context::with_ui_event_data(plugin_id.to_string(), ui_event_data);
                         let mut ui = ui_instance.lock().unwrap();
 
                         // 确保UI实例也有事件数据（这是关键！）
@@ -506,7 +584,7 @@ impl PluginManager {
                             ((*instance.handler).update_ui)(
                                 (*instance.handler).plugin_ptr,
                                 &context as *const Context as *const std::ffi::c_void,
-                                &mut *ui as *mut Ui as *mut std::ffi::c_void
+                                &mut *ui as *mut Ui as *mut std::ffi::c_void,
                             )
                         };
 
@@ -544,16 +622,21 @@ impl PluginManager {
 
     /// 通知插件UI更新
     pub fn notify_plugin_ui_update(&self, plugin_id: &str) -> Result<(), String> {
-        // 向前端发送UI更新事件
-        if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
-            // 创建一个结构化的payload对象
-            let payload = serde_json::json!({
-                "plugin": plugin_id
-            });
-            app_handle.emit("plugin-ui-updated", payload)
-                .map_err(|e| format!("发送UI更新事件失败: {}", e))?;
+        // 向前端发送UI更新事件，使用 host_send_to_frontend 而不是直接调用 app_handle.emit
+        let payload = serde_json::json!({
+            "plugin": plugin_id
+        });
+        let payload_str = payload.to_string();
+
+        // 使用 CString 确保字符串以 null 结尾
+        let event_cstr = CString::new("plugin-ui-updated").map_err(|_| "事件名称转换失败")?;
+        let payload_cstr = CString::new(payload_str).map_err(|_| "载荷转换失败")?;
+
+        if Self::host_send_to_frontend(event_cstr.as_ptr(), payload_cstr.as_ptr()) {
+            Ok(())
+        } else {
+            Err("发送UI更新事件失败".to_string())
         }
-        Ok(())
     }
 
     /// 清理所有已挂载的插件（应用关闭时调用）
@@ -575,12 +658,15 @@ impl PluginManager {
 
                     // 先断开连接
                     if instance.is_connected {
-                        let _ = unsafe { ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr) };
+                        let _ = unsafe {
+                            ((*instance.handler).on_disconnect)((*instance.handler).plugin_ptr)
+                        };
                         instance.is_connected = false;
                     }
 
                     // 调用 on_dispose
-                    let _ = unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
+                    let _ =
+                        unsafe { ((*instance.handler).on_dispose)((*instance.handler).plugin_ptr) };
 
                     // 销毁插件实例
                     unsafe {
@@ -612,5 +698,3 @@ impl PluginManager {
             .ok_or_else(|| format!("插件 {} 未找到", plugin_id))
     }
 }
-
-

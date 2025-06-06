@@ -2,9 +2,17 @@ use std::ffi::CString;
 use crate::callbacks::get_host_callbacks;
 
 /// 向前端发送消息（供插件使用）
+/// 内部调用 host_send_to_frontend 函数
 pub fn send_to_frontend(event: &str, payload: &str) -> bool {
+    host_send_to_frontend(event, payload)
+}
+
+/// 调用主程序的 host_send_to_frontend 函数
+/// 这是实际执行向前端发送消息的函数
+pub fn host_send_to_frontend(event: &str, payload: &str) -> bool {
     if let Some(callbacks) = get_host_callbacks() {
         if let (Ok(event_str), Ok(payload_str)) = (CString::new(event), CString::new(payload)) {
+            // 调用主程序提供的 host_send_to_frontend 函数
             return (callbacks.send_to_frontend)(event_str.as_ptr(), payload_str.as_ptr());
         }
     }

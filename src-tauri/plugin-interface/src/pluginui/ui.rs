@@ -1,5 +1,7 @@
 //! Main UI builder implementation
 
+use crate::{send_to_frontend, PluginHandler};
+
 use super::components::{Response, UiComponent, UiComponentType};
 use std::{
     collections::{HashMap, HashSet},
@@ -293,5 +295,19 @@ impl Ui {
         } else {
             false
         }
+    }
+}
+
+pub trait PluginUiOption {
+    fn refresh_ui(&self) -> bool;
+}
+
+impl<T: PluginHandler> PluginUiOption for T {
+    fn refresh_ui(&self) -> bool {
+        let plugin_id = self.get_metadata().id;
+        let payload = serde_json::json!({
+            "plugin": plugin_id
+        }).to_string();
+        send_to_frontend("plugin-ui-refreshed", &payload.as_str())
     }
 }

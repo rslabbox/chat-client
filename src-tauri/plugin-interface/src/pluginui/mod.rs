@@ -10,6 +10,7 @@ mod ui;
 pub use components::{UiComponent, Response, UiComponentType};
 pub use context::{Context, CreationContext};
 pub use ui::Ui;
+pub use ui::PluginUiOption;
 
 // Re-export commonly used macros
 pub use crate::{log_error, log_info, log_warn};

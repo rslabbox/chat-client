@@ -2,16 +2,17 @@ use plugin_interface::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
     PluginHandler, PluginInterface, PluginMessage, PluginMetadata, PluginStreamMessage,
+    PluginUiOption,
 };
 use std::sync::Arc;
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, sync::Mutex};
 
 /// 示例插件实现 - 使用新的UI框架
 #[derive(Clone)]
 pub struct ExamplePlugin {
     metadata: PluginMetadata,
     name: String,
-    age: u32,
+    age: Arc<Mutex<u32>>, // 使用 Arc<Mutex<T>> 包装以支持异步修改
     selected_option: Option<String>,
     dark_mode: bool,
     runtime: Option<Arc<Runtime>>, // tokio 异步运行时
@@ -22,7 +23,7 @@ impl ExamplePlugin {
     fn new() -> Self {
         Self {
             name: "Debin".to_owned(),
-            age: 32,
+            age: Arc::new(Mutex::new(32)), // 使用 Arc<Mutex<T>> 包装
             selected_option: None,
             dark_mode: false,
             runtime: None, // 在 on_mount 时初始化
@@ -113,41 +114,50 @@ impl ExamplePlugin {
         }
     }
 
-    /// 演示如何在其他函数中使用 tokio runtime
-    fn execute_async_task(&self, task_name: &str) {
+    /// 专门用于演示在异步函数中修改 age 的函数
+    async fn modify_age_async(&self) {
+        log_info!("Starting async age modification...");
+
+        // 模拟一些异步工作
+        tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+
+        // 读取当前值
+        let old_age = {
+            let age_guard = self.age.lock().await;
+            *age_guard
+        };
+
+        // 修改 age 值
+        {
+            let mut age_guard = self.age.lock().await;
+            *age_guard += 5;
+            log_info!("Age modified from {} to {}", old_age, *age_guard);
+        }
+
+        // 通知前端
+        let new_age = {
+            let age_guard = self.age.lock().await;
+            *age_guard
+        };
+
+        self.send_message_to_frontend(&format!(
+            "Age updated from {} to {} (+{})",
+            old_age, new_age, 5
+        ));
+        self.refresh_ui();
+    }
+
+    /// 启动异步修改 age 的任务
+    fn start_async_age_modification(&self) {
         if let Some(runtime) = &self.runtime {
-            let task_name = task_name.to_string();
             let self_clone = Arc::new(self.clone());
 
             runtime.spawn(async move {
-                log_info!("Starting async task: {}", task_name);
-
-                // 模拟一些异步工作
-                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-                // 可以在这里调用其他异步函数
-                self_clone.some_async_operation().await;
-
-                log_info!("Completed async task: {}", task_name);
+                self_clone.modify_age_async().await;
             });
         } else {
-            log_warn!("Cannot execute async task '{}': runtime not initialized", task_name);
+            log_warn!("Cannot modify age: runtime not initialized");
         }
-    }
-
-    /// 示例异步操作
-    async fn some_async_operation(&self) {
-        self.send_message_to_frontend(&format!("Async operation start: Age={}", self.age));
-        log_info!("Performing some async operation...");
-
-        // 模拟网络请求或其他异步操作
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-        // 可以发送消息到前端
-        self.send_message_to_frontend(&format!("Async operation completed: Age={}", self.age));
-
-
-        log_info!("Async operation finished");
     }
 }
 
@@ -166,9 +176,9 @@ impl PluginHandler for ExamplePlugin {
             self_arc.demo_streaming_message_background();
         }
 
-        if ui.button("Execute Async Task").clicked() {
-            log_info!("Starting async task demo");
-            self.execute_async_task("demo_task");
+        if ui.button("Age +5 (Async)").clicked() {
+            log_info!("Starting async age increment by 5");
+            self.start_async_age_modification();
         }
 
         let text_response = ui.text_edit_singleline(&mut self.name);
@@ -199,7 +209,14 @@ impl PluginHandler for ExamplePlugin {
         });
 
         ui.label(&format!("Name: {}", self.name));
-        ui.label(&format!("Age: {}", self.age));
+
+        // 安全地读取 age 值用于显示
+        let current_age = {
+            let age_guard = self.age.blocking_lock();
+            *age_guard
+        };
+        ui.label(&format!("Age: {}", current_age));
+
         ui.label(&format!(
             "Selected Option: {}",
             self.selected_option.as_ref().unwrap_or(&"None".to_string())

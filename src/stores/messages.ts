@@ -73,8 +73,6 @@ export const useMessageStore = defineStore('messages', () => {
     const currentPluginId = pluginStore.currentPluginId
     if (!currentPluginId) return []
 
-    console.log(messagesByPlugin.value)
-
     const pluginMessages = messagesByPlugin.value[currentPluginId] || []
     return pluginMessages.filter(msg => msg.sessionId === sessionId)
   })

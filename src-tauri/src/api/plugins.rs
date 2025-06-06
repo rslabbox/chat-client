@@ -79,6 +79,12 @@ pub fn get_plugin_ui(plugin_id: String) -> Result<String, String> {
     manager.get_plugin_ui(&plugin_id)
 }
 
+#[tauri::command]
+pub fn handle_plugin_ui_update(plugin_id: String, component_id: String, value: String) -> Result<bool, String> {
+    let manager = get_plugin_manager()?;
+    manager.handle_plugin_ui_update(&plugin_id, &component_id, &value)
+}
+
 /// 处理插件UI事件
 #[tauri::command]
 pub fn handle_plugin_ui_event(plugin_id: String, component_id: String, value: String) -> Result<bool, String> {

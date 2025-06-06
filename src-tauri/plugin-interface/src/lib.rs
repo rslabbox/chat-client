@@ -16,6 +16,6 @@ pub use api::*;
 pub use handler::*;
 pub use symbols::*;
 pub use logging::*;
-pub use pluginui::{CreationContext, Context, Ui};
+pub use pluginui::{CreationContext, Context, Ui, PluginUiOption};
 pub use config::*;
 pub use message::*;

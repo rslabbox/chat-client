@@ -16,6 +16,19 @@ export async function getPluginUi(pluginId: string): Promise<PluginUi> {
 }
 
 /**
+ * 刷新ui 专用
+ * @param pluginId 插件ID
+ * @returns 是否处理成功
+ */
+export async function refreshPluginUi(pluginId: string): Promise<boolean> {
+  return await invoke<boolean>('handle_plugin_ui_update', {
+    pluginId,
+    componentId: '',
+    value: ''
+  })
+}
+
+/**
  * 处理插件UI事件
  * @param pluginId 插件ID
  * @param componentId 组件ID

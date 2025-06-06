@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, reactive } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { getPluginUi, handlePluginUiEvent } from '@/api/plugin-ui'
+import { getPluginUi, handlePluginUiEvent, refreshPluginUi } from '@/api/plugin-ui'
 import type { Component } from '@/api/types'
 
 // Props
@@ -119,6 +119,7 @@ const toggleValues = reactive<Record<string, boolean>>({})
 
 // 事件监听器
 let unlistenPluginUiUpdate: UnlistenFn | null = null
+let unlistenPluginUiRefresh: UnlistenFn | null = null
 
 // 加载插件UI
 const loadPluginUI = async (pluginId: string) => {
@@ -251,9 +252,19 @@ watch(() => props.pluginId, (newPluginId) => {
 onMounted(async () => {
   // 监听插件UI更新事件
   unlistenPluginUiUpdate = await listen('plugin-ui-updated', (event) => {
-    const payload = event.payload as { plugin: string }
+    console.log('Plugin UI updated event:', event.payload)
+    const payload = JSON.parse(event.payload as string)
+    console.log('Plugin UI updated event:', payload)
     if (payload.plugin === props.pluginId) {
       loadPluginUI(props.pluginId!)
+    }
+  })
+
+  // 监听插件UI刷新事件
+  unlistenPluginUiRefresh = await listen('plugin-ui-refreshed', (event) => {
+    const payload = JSON.parse(event.payload as string)
+    if (payload.plugin === props.pluginId) {
+      refreshPluginUi(props.pluginId!)
     }
   })
 })
@@ -262,6 +273,10 @@ onMounted(async () => {
 onUnmounted(() => {
   if (unlistenPluginUiUpdate) {
     unlistenPluginUiUpdate()
+  }
+
+  if (unlistenPluginUiRefresh) {
+    unlistenPluginUiRefresh()
   }
 })
 </script>
