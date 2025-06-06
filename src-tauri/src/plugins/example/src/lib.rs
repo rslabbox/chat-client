@@ -3,7 +3,7 @@ use plugin_interface::{
     pluginui::{Context, Ui},
     PluginHandler, PluginInterface, PluginMessage, PluginMetadata, PluginStreamMessage,
 };
-use std::{fmt::format, sync::Arc};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 /// 示例插件实现 - 使用新的UI框架
