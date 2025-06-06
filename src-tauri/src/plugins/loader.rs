@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use walkdir::WalkDir;
-use plugin_interfaces::PluginMetadata;
+use plugin_interfaces::{log_info, log_warn, PluginMetadata};
 
 use crate::plugins::config::PluginConfig;
 
@@ -13,31 +13,42 @@ impl PluginLoader {
     }
 
     /// 扫描并返回插件列表
-    /// 从 plugins 目录扫描所有包含 config.toml 的子目录
+    /// 同时扫描 (pwd)/plugins 和 (pwd)/src-tauri/src/plugins 目录下的所有包含 config.toml 的子目录
     pub fn scan_plugins(&self) -> Vec<PluginMetadata> {
         let mut plugins = Vec::new();
 
-        // 获取插件目录路径
-        let plugins_dir = self.get_plugins_directory();
+        // 获取要扫描的插件目录列表
+        let plugin_directories = self.get_plugins_directories();
 
-        if !plugins_dir.exists() {
-            eprintln!("Plugins directory does not exist: {:?}", plugins_dir);
-            return plugins;
-        }
+        // 扫描每个插件目录
+        for plugins_dir in plugin_directories {
+            if !plugins_dir.exists() {
+                log_warn!("Plugins directory does not exist: {:?}", plugins_dir);
+                continue;
+            }
 
-        // 扫描插件目录
-        for entry in WalkDir::new(&plugins_dir)
-            .min_depth(1)
-            .max_depth(1)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_dir() {
-                if let Some(plugin_metadata) = self.load_plugin_from_directory(entry.path()) {
-                    if plugin_metadata.disabled {
-                        continue;
+            log_info!("Scanning plugins directory: {:?}", plugins_dir);
+
+            // 扫描当前插件目录
+            for entry in WalkDir::new(&plugins_dir)
+                .min_depth(1)
+                .max_depth(1)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_dir() {
+                    if let Some(plugin_metadata) = self.load_plugin_from_directory(entry.path()) {
+                        if plugin_metadata.disabled {
+                            continue;
+                        }
+
+                        // 检查是否已经存在相同ID的插件，避免重复加载
+                        if !plugins.iter().any(|p: &PluginMetadata| p.id == plugin_metadata.id) {
+                            plugins.push(plugin_metadata);
+                        } else {
+                            log_warn!("Plugin with ID '{}' already loaded, skipping duplicate", plugin_metadata.id);
+                        }
                     }
-                    plugins.push(plugin_metadata);
                 }
             }
         }
@@ -45,26 +56,21 @@ impl PluginLoader {
         plugins
     }
 
-    /// 获取插件目录路径
-    fn get_plugins_directory(&self) -> PathBuf {
-        // 在开发环境中，插件目录位于 src-tauri/src/plugins
-        // 在生产环境中，可能位于应用程序目录下的 plugins 文件夹
+    /// 获取要扫描的插件目录列表
+    /// 同时返回 (pwd)/plugins 和 (pwd)/src-tauri/src/plugins 两个目录
+    fn get_plugins_directories(&self) -> Vec<PathBuf> {
         let current_dir = std::env::current_dir().unwrap_or_default();
+        let mut directories = Vec::new();
 
-        // 首先尝试开发环境路径（从 src-tauri 目录运行时）
-        let dev_path_1 = current_dir.join("src").join("plugins");
-        if dev_path_1.exists() {
-            return dev_path_1;
-        }
+        // 添加 (pwd)/plugins 目录
+        let plugins_dir = current_dir.join("../").join("plugins");
+        directories.push(plugins_dir);
 
-        // 然后尝试从项目根目录运行时的路径
-        let dev_path_2 = current_dir.join("src-tauri").join("src").join("plugins");
-        if dev_path_2.exists() {
-            return dev_path_2;
-        }
+        // 添加 (pwd)/src-tauri/src/plugins 目录
+        let src_plugins_dir = current_dir.join("src").join("plugins");
+        directories.push(src_plugins_dir);
 
-        // 最后尝试生产环境路径
-        current_dir.join("plugins")
+        directories
     }
 
     /// 从目录加载插件元数据
@@ -91,7 +97,7 @@ impl PluginLoader {
                 })
             }
             Err(e) => {
-                eprintln!("Failed to load plugin config from {:?}: {}", config_path, e);
+                log_warn!("Failed to load plugin config from {:?}: {}", config_path, e);
                 None
             }
         }
