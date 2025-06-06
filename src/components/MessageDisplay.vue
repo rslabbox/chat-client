@@ -29,16 +29,6 @@
           <div v-else class="normal-message">
             <div class="message-text">{{ message.content }}</div>
 
-            <!-- 消息类型标识 -->
-            <!-- <div v-if="message.messageType && message.messageType !== 'normal'" class="message-type-badge">
-              <el-icon>
-                <SuccessFilled v-if="message.messageType === 'success'" />
-                <WarningFilled v-else-if="message.messageType === 'warning'" />
-                <CircleCloseFilled v-else-if="message.messageType === 'error'" />
-                <InfoFilled v-else-if="message.messageType === 'info'" />
-              </el-icon>
-              <span>{{ getMessageTypeText(message.messageType) }}</span>
-            </div> -->
           </div>
 
           <div class="message-time">
@@ -59,11 +49,7 @@ import { ref, nextTick, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   Plus,
-  Loading,
-  SuccessFilled,
-  WarningFilled,
-  CircleCloseFilled,
-  InfoFilled
+  Loading
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMessageStore } from '@/stores/messages'
@@ -94,17 +80,6 @@ const getMessageTypeClass = (message: any) => {
   }
 
   return classes.join(' ')
-}
-
-// 获取消息类型的文本
-const getMessageTypeText = (messageType: string) => {
-  const typeMap: Record<string, string> = {
-    success: '成功',
-    warning: '警告',
-    error: '错误',
-    info: '信息'
-  }
-  return typeMap[messageType] || messageType
 }
 
 const handleNewChat = () => {
@@ -226,6 +201,7 @@ watch(currentMessages, () => {
 .message-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
 /* 流式消息样式 */
 .streaming-message {
   position: relative;
