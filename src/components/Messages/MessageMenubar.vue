@@ -104,7 +104,7 @@ const copyToClipboard = (text: string) => {
 // 格式化为 Markdown
 const formatAsMarkdown = (message: any) => {
   const timestamp = new Date(message.timestamp).toLocaleString('zh-CN')
-  const role = message.role === 'user' ? '用户' : 'AI助手'
+  const role = message.role === 'user' ? '用户' : '插件'
 
   return `## ${role} (${timestamp})
 

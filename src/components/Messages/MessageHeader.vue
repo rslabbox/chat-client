@@ -62,7 +62,7 @@ const senderName = computed(() => {
     case 'user':
       return '用户'
     case 'assistant':
-      return props.message.assistant?.name || 'AI助手'
+      return props.message.assistant?.name || '插件'
     case 'system':
       return '系统'
     default:
