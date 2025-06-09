@@ -13,6 +13,8 @@ export interface PluginMessage {
   messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info'
   isStreaming?: boolean
   streamId?: string
+  blocks?: any[]
+  role?: 'user' | 'assistant' | 'system'
 }
 
 export interface StreamMessage {
@@ -164,8 +166,8 @@ export const useMessageStore = defineStore('messages', () => {
     return true
   }
 
-  // 添加消息
-  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info') => {
+  // 添加消息（支持块结构）
+  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info', blocks?: any[]) => {
     const targetPluginId = pluginId || pluginStore.currentPluginId
     if (!targetPluginId) {
       console.warn('无法添加消息：没有指定插件ID且当前没有活跃插件')
@@ -190,7 +192,9 @@ export const useMessageStore = defineStore('messages', () => {
       type,
       pluginId: targetPluginId,
       sessionId,
-      messageType: messageType || 'normal'
+      messageType: messageType || 'normal',
+      blocks: blocks || undefined,
+      role: type === 'sent' ? 'user' : 'assistant'
     }
 
     // 确保插件消息数组存在
@@ -273,7 +277,8 @@ export const useMessageStore = defineStore('messages', () => {
       sessionId,
       messageType: 'info',
       isStreaming: true,
-      streamId: stream_id
+      streamId: stream_id,
+      role: 'assistant'
     }
 
     if (!messagesByPlugin.value[plugin_id]) {

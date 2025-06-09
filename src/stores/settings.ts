@@ -18,6 +18,7 @@ export interface AppSettings {
   maxDisplayMessages: number
   autoScrollToLatest: boolean
   enableMarkdown: boolean
+  renderInputMessageAsMarkdown: boolean
   
   // 高级设置
   developerMode: boolean
@@ -41,6 +42,7 @@ const defaultSettings: AppSettings = {
   maxDisplayMessages: 200,
   autoScrollToLatest: true,
   enableMarkdown: true,
+  renderInputMessageAsMarkdown: false,
   
   // 高级设置
   developerMode: false,
