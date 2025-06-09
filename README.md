@@ -90,6 +90,7 @@ chat-client/
 
 ### Plugin Development  
 
+Refer to [Deepseek-plugin](https://github.com/luodeb/deepseek-plugin) or [Example](src-tauri/src/plugins)
 1. **Create a new plugin**  
    ```bash  
    cd src-tauri/src/plugins  

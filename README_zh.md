@@ -90,6 +90,7 @@ chat-client/
 
 ### 插件开发
 
+参考 [Deepseek-plugin](https://github.com/luodeb/deepseek-plugin) 或者 [Example](src-tauri/src/plugins)
 1. **创建新插件**
    ```bash
    cd src-tauri/src/plugins
