@@ -1,11 +1,5 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="系统设置"
-    width="600px"
-    :before-close="handleClose"
-    destroy-on-close
-  >
+  <el-dialog v-model="visible" title="系统设置" width="600px" :before-close="handleClose" destroy-on-close>
     <el-tabs v-model="activeTab" type="border-card">
       <!-- 通用设置 -->
       <el-tab-pane label="通用" name="general">
@@ -58,12 +52,7 @@
               <el-text type="info" size="small">插件文件存放的目录路径</el-text>
             </div>
             <div class="setting-control">
-              <el-input 
-                v-model="settings.pluginDirectory" 
-                placeholder="插件目录路径"
-                style="width: 300px;"
-                readonly
-              >
+              <el-input v-model="settings.pluginDirectory" placeholder="插件目录路径" style="width: 300px;" readonly>
                 <template #append>
                   <el-button @click="selectPluginDirectory" :icon="FolderOpened">
                     浏览
@@ -109,12 +98,7 @@
               <el-text type="info" size="small">超过指定天数的消息将被自动清理</el-text>
             </div>
             <div class="setting-control">
-              <el-input-number 
-                v-model="settings.messageRetentionDays" 
-                :min="1" 
-                :max="365"
-                style="width: 200px;"
-              />
+              <el-input-number v-model="settings.messageRetentionDays" :min="1" :max="365" style="width: 200px;" />
             </div>
           </div>
 
@@ -124,13 +108,8 @@
               <el-text type="info" size="small">消息显示区域最多显示的消息条数</el-text>
             </div>
             <div class="setting-control">
-              <el-input-number 
-                v-model="settings.maxDisplayMessages" 
-                :min="50" 
-                :max="1000"
-                :step="50"
-                style="width: 200px;"
-              />
+              <el-input-number v-model="settings.maxDisplayMessages" :min="50" :max="1000" :step="50"
+                style="width: 200px;" />
             </div>
           </div>
 
@@ -141,6 +120,16 @@
             </div>
             <div class="setting-control">
               <el-switch v-model="settings.autoScrollToLatest" />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>启用 Markdown 渲染</span>
+              <el-text type="info" size="small">将消息内容按 Markdown 格式渲染显示</el-text>
+            </div>
+            <div class="setting-control">
+              <el-switch v-model="settings.enableMarkdown" />
             </div>
           </div>
         </div>

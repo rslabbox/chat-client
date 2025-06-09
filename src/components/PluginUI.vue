@@ -52,9 +52,9 @@
 
         <!-- 水平布局容器组件 -->
         <div v-else-if="component.component.type === 'Horizontal'" class="horizontal-container"
-          style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
-          <div v-for="child in component.component.children" :key="child.id" class="horizontal-child"
-            style="flex: 1; min-width: 0;">
+          style="display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start;">
+          <div v-for="child in component.component.children" :key="child.id"
+            :class="['horizontal-child', child.component.type === 'Label' ? 'horizontal-child-fixed' : 'horizontal-child-flexible']">
             <!-- 递归渲染子组件 -->
             <div class="ui-component">
               <!-- 子组件标签 -->
@@ -338,10 +338,21 @@ onUnmounted(() => {
 .horizontal-container {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .horizontal-child {
+  min-width: 0;
+  }
+  
+  /* 固定宽度的子组件（如Label） */
+  .horizontal-child-fixed {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  
+  /* 可伸缩的子组件（如TextEdit, ComboBox等） */
+  .horizontal-child-flexible {
   flex: 1;
   min-width: 0;
 }

@@ -17,6 +17,7 @@ export interface AppSettings {
   messageRetentionDays: number
   maxDisplayMessages: number
   autoScrollToLatest: boolean
+  enableMarkdown: boolean
   
   // 高级设置
   developerMode: boolean
@@ -39,6 +40,7 @@ const defaultSettings: AppSettings = {
   messageRetentionDays: 30,
   maxDisplayMessages: 200,
   autoScrollToLatest: true,
+  enableMarkdown: true,
   
   // 高级设置
   developerMode: false,
