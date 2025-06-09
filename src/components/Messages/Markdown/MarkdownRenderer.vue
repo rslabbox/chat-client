@@ -113,8 +113,9 @@ const addCopyButtons = (html: string) => {
   return html.replace(
     /<pre><code class="language-([^"]*)">([\s\S]*?)<\/code><\/pre>/g,
     (_match, lang, code) => {
-      // 解码 HTML 实体
-      const decodedCode = code
+      // 移除所有 HTML 标签并解码 HTML 实体，获取纯文本代码
+      const cleanCode = code
+        .replace(/<[^>]*>/g, '') // 移除所有 HTML 标签
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&amp;/g, '&')
@@ -130,7 +131,7 @@ const addCopyButtons = (html: string) => {
             <button
               class="copy-button"
               id="${copyButtonId}"
-              onclick="window.copyCodeToClipboard('${encodeURIComponent(decodedCode)}')"
+              onclick="window.copyCodeToClipboard('${encodeURIComponent(cleanCode)}')"
               title="复制代码"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
