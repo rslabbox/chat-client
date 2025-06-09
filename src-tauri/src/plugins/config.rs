@@ -22,7 +22,9 @@ pub struct PluginInfo {
 
 impl PluginConfig {
     /// 从 TOML 文件加载插件配置
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_file<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let config: PluginConfig = toml::from_str(&content)?;
         Ok(config)

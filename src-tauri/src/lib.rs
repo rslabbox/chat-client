@@ -3,7 +3,11 @@ mod api;
 pub mod plugins;
 
 // 导入所有 API 命令
-use api::{greet, scan_plugins, mount_plugin, dispose_plugin, connect_plugin, disconnect_plugin, get_plugin_status, get_current_plugin, send_message_to_plugin, get_plugin_ui, handle_plugin_ui_update, handle_plugin_ui_event};
+use api::{
+    connect_plugin, disconnect_plugin, dispose_plugin, get_current_plugin, get_plugin_status,
+    get_plugin_ui, greet, handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin,
+    scan_plugins, send_message_to_plugin,
+};
 
 use plugin_interfaces::log_info;
 use tauri::{RunEvent, WindowEvent};
@@ -38,7 +42,10 @@ pub fn run() {
                 log_info!("应用即将退出，正在清理插件...");
                 api::plugins::cleanup_all_plugins();
             }
-            RunEvent::WindowEvent { event: WindowEvent::CloseRequested { .. }, .. } => {
+            RunEvent::WindowEvent {
+                event: WindowEvent::CloseRequested { .. },
+                ..
+            } => {
                 // 当最后一个窗口关闭时，也执行清理
                 log_info!("窗口关闭，正在清理插件...");
                 api::plugins::cleanup_all_plugins();

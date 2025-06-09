@@ -1,6 +1,6 @@
+use plugin_interfaces::{log_info, log_warn, PluginMetadata};
 use std::path::PathBuf;
 use walkdir::WalkDir;
-use plugin_interfaces::{log_info, log_warn, PluginMetadata};
 
 use crate::plugins::config::PluginConfig;
 
@@ -43,10 +43,16 @@ impl PluginLoader {
                         }
 
                         // 检查是否已经存在相同ID的插件，避免重复加载
-                        if !plugins.iter().any(|p: &PluginMetadata| p.id == plugin_metadata.id) {
+                        if !plugins
+                            .iter()
+                            .any(|p: &PluginMetadata| p.id == plugin_metadata.id)
+                        {
                             plugins.push(plugin_metadata);
                         } else {
-                            log_warn!("Plugin with ID '{}' already loaded, skipping duplicate", plugin_metadata.id);
+                            log_warn!(
+                                "Plugin with ID '{}' already loaded, skipping duplicate",
+                                plugin_metadata.id
+                            );
                         }
                     }
                 }
@@ -104,7 +110,11 @@ impl PluginLoader {
     }
 
     /// 查找动态库文件
-    fn find_library_file(&self, plugin_dir: &std::path::Path, library_name: &str) -> Option<String> {
+    fn find_library_file(
+        &self,
+        plugin_dir: &std::path::Path,
+        library_name: &str,
+    ) -> Option<String> {
         // 判断是哪个平台 windows / macos / linux
         let library_name_dylib = if cfg!(target_os = "windows") {
             format!("{}.dll", library_name)
@@ -113,7 +123,7 @@ impl PluginLoader {
         } else {
             format!("lib{}.so", library_name)
         };
-        
+
         // 直接在插件目录中查找
         let direct_path = plugin_dir.join(&library_name_dylib);
         if direct_path.exists() {
@@ -121,13 +131,19 @@ impl PluginLoader {
         }
 
         // 在插件目录的 target/debug 目录中查找（开发环境）
-        let debug_path = plugin_dir.join("target").join("debug").join(&library_name_dylib);
+        let debug_path = plugin_dir
+            .join("target")
+            .join("debug")
+            .join(&library_name_dylib);
         if debug_path.exists() {
             return Some(debug_path.to_string_lossy().to_string());
         }
 
         // 在插件目录的 target/release 目录中查找（开发环境）
-        let target_path = plugin_dir.join("target").join("release").join(&library_name_dylib);
+        let target_path = plugin_dir
+            .join("target")
+            .join("release")
+            .join(&library_name_dylib);
         if target_path.exists() {
             return Some(target_path.to_string_lossy().to_string());
         }
