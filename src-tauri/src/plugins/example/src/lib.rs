@@ -1,8 +1,5 @@
 use plugin_interfaces::{
-    create_plugin_interface_from_handler, log_info, log_warn,
-    pluginui::{Context, Ui},
-    PluginHandler, PluginInterface, PluginMessage, PluginMetadata, PluginStreamMessage,
-    PluginUiOption,
+    create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui}, PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginUiOption
 };
 use std::sync::Arc;
 use tokio::{runtime::Runtime, sync::Mutex};
@@ -10,7 +7,6 @@ use tokio::{runtime::Runtime, sync::Mutex};
 /// 示例插件实现 - 使用新的UI框架
 #[derive(Clone)]
 pub struct ExamplePlugin {
-    metadata: PluginMetadata,
     name: String,
     age: Arc<Mutex<u32>>, // 使用 Arc<Mutex<T>> 包装以支持异步修改
     selected_option: Option<String>,
@@ -27,17 +23,6 @@ impl ExamplePlugin {
             selected_option: None,
             dark_mode: false,
             runtime: None, // 在 on_mount 时初始化
-            metadata: PluginMetadata {
-                id: "example_plugin".to_string(),
-                disabled: false,
-                name: "Example Plugin".to_string(),
-                description: "Example plugin using new UI framework".to_string(),
-                version: "1.0.0".to_string(),
-                author: Some("Augment".to_string()),
-                library_path: None,
-                config_path: "config.toml".to_string(),
-                instance_id: None,
-            },
         }
     }
     fn theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context) {
@@ -227,15 +212,16 @@ impl PluginHandler for ExamplePlugin {
     }
 
     // 挂载插件的时候调用
-    fn on_mount(&mut self, metadata: &PluginMetadata) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Plugin mount successfully", self.metadata.name);
+    fn on_mount(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = self.get_metadata();
+        log_info!("[{}] Plugin mount successfully", metadata.name);
         log_info!(
-            "Config Metadata: id={}, name={}, version={}",
+            "Config Metadata: id={}, name={}, version={}, instance_id={}",
             metadata.id,
             metadata.name,
-            metadata.version
+            metadata.version,
+            metadata.instance_id.unwrap_or("None".to_string())
         );
-        self.metadata = metadata.clone();
 
         // 初始化 tokio 异步运行时
         match Runtime::new() {
@@ -252,32 +238,28 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn on_dispose(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Plugin disposed successfully", self.metadata.name);
+        log_info!("[{}] Plugin disposed successfully", self.get_metadata().name);
         Ok(())
     }
 
     fn on_connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected", self.metadata.name);
+        log_info!("[{}] Connected", self.get_metadata().name);
         Ok(())
     }
 
     fn on_disconnect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected", self.metadata.name);
+        log_warn!("[{}] Disconnected", self.get_metadata().name);
         Ok(())
     }
 
     fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
-        log_info!("[{}] Received message: {}", self.metadata.name, message);
+        log_info!("[{}] Received message: {}", self.get_metadata().name, message);
 
-        let response = format!("Echo from {}: {}", self.metadata.name, message);
+        let response = format!("Echo from {}: {}", self.get_metadata().name, message);
 
         // 向前端发送响应
         // send_message_to_frontend!("收到消息: {}", message);
         Ok(response)
-    }
-
-    fn get_metadata(&self) -> PluginMetadata {
-        self.metadata.clone()
     }
 }
 

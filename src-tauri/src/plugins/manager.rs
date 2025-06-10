@@ -1,10 +1,7 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interfaces::{
-    log_error, log_info,
-    pluginui::{Context, Ui},
-    CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata,
-    CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
+    log_error, log_info, pluginui::{Context, Ui}, CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -18,6 +15,7 @@ static GLOBAL_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 /// 插件实例信息
 pub struct PluginInstance {
     pub metadata: PluginMetadata,
+    pub instance_id: String,  // 插件实例ID，用于多实例支持
     pub handler: *mut PluginInterface,
     pub library: Library,
     pub is_mounted: bool,
@@ -141,6 +139,8 @@ impl PluginManager {
         std::ptr::null()
     }
 
+
+
     /// 扫描插件列表
     pub fn scan_plugins(&self) -> Vec<PluginMetadata> {
         self.loader.scan_plugins()
@@ -197,9 +197,16 @@ impl PluginManager {
             return Err("插件创建失败".to_string());
         }
 
-        // 初始化插件（设置回调函数）
+        // 初始化插件（设置回调函数和元数据）
         let callbacks = self.create_host_callbacks();
-        let init_result = unsafe { ((*handler).initialize)((*handler).plugin_ptr, callbacks) };
+        let metadata_ffi = plugin_metadata.to_ffi();
+        let init_result = unsafe { ((*handler).initialize)((*handler).plugin_ptr, callbacks, metadata_ffi) };
+
+        // 清理FFI元数据内存
+        unsafe {
+            plugin_interfaces::metadata::free_plugin_metadata_ffi(metadata_ffi);
+        }
+
         if init_result != 0 {
             // 清理失败的插件实例
             unsafe {
@@ -212,14 +219,8 @@ impl PluginManager {
             return Err("插件初始化失败".to_string());
         }
 
-        // 调用 on_mount，传递元数据
-        let metadata_ffi = plugin_metadata.to_ffi();
-        let mount_result = unsafe { ((*handler).on_mount)((*handler).plugin_ptr, metadata_ffi) };
-
-        // 清理FFI元数据内存
-        unsafe {
-            plugin_interfaces::metadata::free_plugin_metadata_ffi(metadata_ffi);
-        }
+        // 调用 on_mount
+        let mount_result = unsafe { ((*handler).on_mount)((*handler).plugin_ptr) };
 
         let result: Result<(), Box<dyn std::error::Error>> = if mount_result == 0 {
             Ok(())
@@ -256,6 +257,7 @@ impl PluginManager {
                 // 创建插件实例
                 let instance = PluginInstance {
                     metadata: plugin_metadata.clone(),
+                    instance_id: "1234567890".to_string(),
                     handler,
                     library,
                     is_mounted: true,
@@ -318,6 +320,9 @@ impl PluginManager {
             }
 
             instance.is_mounted = false;
+
+            // 清理全局插件元数据
+            plugin_interfaces::clear_plugin_metadata();
 
             // 如果这是当前插件，清除当前插件状态
             let mut current = self.current_plugin.lock().unwrap();
