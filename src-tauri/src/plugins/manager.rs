@@ -519,10 +519,6 @@ impl PluginManager {
 
     /// 获取插件实例UI定义
     pub fn get_plugin_ui(&self, instance_id: &str) -> Result<String, String> {
-        log_info!("获取插件实例UI定义: {}", instance_id);
-        for (id, instance) in self.instances.lock().unwrap().iter() {
-            log_info!("实例ID: {}", id);
-        }
         let mut instances = self.instances.lock().unwrap();
 
         if let Some(instance) = instances.get_mut(instance_id) {
