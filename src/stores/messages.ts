@@ -9,6 +9,7 @@ export interface PluginMessage {
   timestamp: Date
   type: 'sent' | 'received'
   pluginId: string
+  instanceId?: string
   sessionId: string
   messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info'
   isStreaming?: boolean
@@ -21,6 +22,7 @@ export interface StreamMessage {
   id: string
   streamId: string
   pluginId: string
+  instanceId?: string
   sessionId: string
   content: string
   timestamp: Date
@@ -167,7 +169,7 @@ export const useMessageStore = defineStore('messages', () => {
   }
 
   // 添加消息（支持块结构）
-  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info', blocks?: any[]) => {
+  const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info', blocks?: any[], instanceId?: string) => {
     const targetPluginId = pluginId || pluginStore.currentPlugin?.id
     if (!targetPluginId) {
       console.warn('无法添加消息：没有指定插件ID且当前没有活跃插件')
@@ -191,6 +193,7 @@ export const useMessageStore = defineStore('messages', () => {
       timestamp: new Date(),
       type,
       pluginId: targetPluginId,
+      instanceId: instanceId,
       sessionId,
       messageType: messageType || 'normal',
       blocks: blocks || undefined,
@@ -248,7 +251,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 流式消息处理方法
   const handleStreamStart = (message: any) => {
-    const { plugin_id, data } = message
+    const { plugin_id, instance_id, data } = message
     const { stream_id, stream_type, metadata } = data
     const sessionId = currentSessionId.value
     if (!sessionId) return
@@ -257,6 +260,7 @@ export const useMessageStore = defineStore('messages', () => {
       id: generateMessageId(),
       streamId: stream_id,
       pluginId: plugin_id,
+      instanceId: instance_id,
       sessionId,
       content: '',
       timestamp: new Date(),
@@ -274,6 +278,7 @@ export const useMessageStore = defineStore('messages', () => {
       timestamp: new Date(),
       type: 'received',
       pluginId: plugin_id,
+      instanceId: instance_id,
       sessionId,
       messageType: 'info',
       isStreaming: true,
@@ -487,7 +492,7 @@ export const useMessageStore = defineStore('messages', () => {
         console.log('Plugin message event:', event.payload)
         try {
           const data = JSON.parse(event.payload as string)
-          addMessage(data.content, 'received', data.plugin_id, data.message_type)
+          addMessage(data.content, 'received', data.plugin_id, data.message_type, undefined, data.instance_id)
         } catch (e) {
           console.error('Failed to parse plugin-message event:', e)
         }

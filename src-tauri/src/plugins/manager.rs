@@ -193,7 +193,8 @@ impl PluginManager {
         }
 
         // 加载插件
-        let plugin_metadata = self.find_plugin_metadata(plugin_id)?;
+        let mut plugin_metadata = self.find_plugin_metadata(plugin_id)?;
+        plugin_metadata.instance_id = Some(instance_id.clone());
         let library_path = plugin_metadata
             .library_path
             .as_ref()
