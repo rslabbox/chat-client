@@ -37,7 +37,34 @@ impl ExamplePlugin {
             if ui.button("Light").clicked() {
                 log_info!("Light theme");
                 // 使用新的消息发送功能
-                self.send_message_to_frontend("Light theme selected");
+                self.send_message_to_frontend(r"以下是一个代码块和一个数学公式的示例：
+
+### 代码块 (Python)
+```python
+# 计算斐波那契数列
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+```
+
+### 数学公式 (欧拉公式)
+$$ e^{i\pi} + 1 = 0 $$
+
+#### 公式说明：
+这是数学中最著名的公式之一，由莱昂哈德·欧拉提出，它将五个基本数学常数联系在一起：
+- $e$ (自然对数的底)
+- $i$ (虚数单位)
+- $\pi$ (圆周率)
+- $1$ (乘法单位元)
+- $0$ (加法单位元)
+
+公式在复分析和数学物理中有重要应用，展示了指数函数与三角函数的深刻联系：
+$$ e^{i\theta} = \cos\theta + i\sin\theta $$
+
+当 $\theta = \pi$ 时，得到：
+$$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
             }
         });
     }
@@ -53,7 +80,7 @@ impl ExamplePlugin {
                     "后台第一部分数据...",
                     "后台第二部分数据...",
                     "后台第三部分数据...",
-                    "后台第四部分数据，请稍等...",
+                    "后台第四部分数据，请稍等..."
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
