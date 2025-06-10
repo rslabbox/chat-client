@@ -4,7 +4,7 @@ pub mod plugins;
 
 // 导入所有 API 命令
 use api::{
-    connect_plugin, disconnect_plugin, dispose_plugin, get_current_plugin, get_plugin_status,
+    connect_plugin, disconnect_plugin, dispose_plugin, get_current_instance, get_plugin_status,
     get_plugin_ui, greet, handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin,
     scan_plugins, send_message_to_plugin,
 };
@@ -24,7 +24,7 @@ pub fn run() {
             connect_plugin,
             disconnect_plugin,
             get_plugin_status,
-            get_current_plugin,
+            get_current_instance,
             send_message_to_plugin,
             get_plugin_ui,
             handle_plugin_ui_update,

@@ -1,5 +1,7 @@
 use plugin_interfaces::{
-    create_plugin_interface_from_handler, log_info, log_warn, pluginui::{Context, Ui}, PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginUiOption
+    create_plugin_interface_from_handler, log_info, log_warn,
+    pluginui::{Context, Ui},
+    PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginUiOption,
 };
 use std::sync::Arc;
 use tokio::{runtime::Runtime, sync::Mutex};
@@ -55,7 +57,6 @@ impl ExamplePlugin {
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
-
                     let is_final = i == chunks.len() - 1;
                     if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
                         log_warn!("Failed to send background stream chunk: {}", e);
@@ -238,7 +239,10 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn on_dispose(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Plugin disposed successfully", self.get_metadata().name);
+        log_info!(
+            "[{}] Plugin disposed successfully",
+            self.get_metadata().name
+        );
         Ok(())
     }
 
@@ -253,7 +257,11 @@ impl PluginHandler for ExamplePlugin {
     }
 
     fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
-        log_info!("[{}] Received message: {}", self.get_metadata().name, message);
+        log_info!(
+            "[{}] Received message: {}",
+            self.get_metadata().name,
+            message
+        );
 
         let response = format!("Echo from {}: {}", self.get_metadata().name, message);
 

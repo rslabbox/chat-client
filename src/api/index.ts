@@ -14,7 +14,7 @@ export {
   connectPlugin,
   disconnectPlugin,
   getPluginStatus,
-  getCurrentPlugin,
+  getCurrentInstance,
   sendMessageToPlugin
 } from './plugins'
 

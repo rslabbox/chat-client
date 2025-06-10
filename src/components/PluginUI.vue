@@ -1,7 +1,7 @@
 <template>
   <div class="plugin-ui">
-    <div v-if="!pluginId" class="no-plugin">
-      <el-empty description="请选择一个插件" :image-size="60" />
+    <div v-if="!instanceId" class="no-plugin">
+      <el-empty description="请选择一个插件实例" :image-size="60" />
     </div>
 
     <div v-else-if="loading" class="loading">
@@ -104,7 +104,7 @@ import type { Component } from '@/api/types'
 
 // Props
 interface Props {
-  pluginId?: string
+  instanceId?: string
 }
 
 const props = defineProps<Props>()
@@ -122,8 +122,8 @@ let unlistenPluginUiUpdate: UnlistenFn | null = null
 let unlistenPluginUiRefresh: UnlistenFn | null = null
 
 // 加载插件UI
-const loadPluginUI = async (pluginId: string) => {
-  if (!pluginId) {
+const loadPluginUI = async (instanceId: string) => {
+  if (!instanceId) {
     uiComponents.value = []
     return
   }
@@ -132,7 +132,7 @@ const loadPluginUI = async (pluginId: string) => {
   error.value = ''
 
   try {
-    const ui = await getPluginUi(pluginId)
+    const ui = await getPluginUi(instanceId)
     uiComponents.value = ui
 
     // 初始化文本框和下拉选择框的值
@@ -166,10 +166,10 @@ const loadPluginUI = async (pluginId: string) => {
 
 // 处理按钮点击
 const handleButtonClick = async (componentId: string) => {
-  if (!props.pluginId) return
+  if (!props.instanceId) return
 
   try {
-    const success = await handlePluginUiEvent(props.pluginId, componentId, '')
+    const success = await handlePluginUiEvent(props.instanceId, componentId, '')
     if (!success) {
       console.warn('按钮点击事件处理失败')
     }
@@ -180,12 +180,12 @@ const handleButtonClick = async (componentId: string) => {
 
 // 处理文本框提交
 const handleTextFieldSubmit = async (componentId: string) => {
-  if (!props.pluginId) return
+  if (!props.instanceId) return
 
   const value = textFieldValues[componentId] || ''
 
   try {
-    const success = await handlePluginUiEvent(props.pluginId, componentId, value)
+    const success = await handlePluginUiEvent(props.instanceId, componentId, value)
     if (success) {
       console.log('文本框提交事件处理成功:', value)
       // 可以选择清空文本框或保持原值
@@ -200,10 +200,10 @@ const handleTextFieldSubmit = async (componentId: string) => {
 
 // 处理下拉选择框变化
 const handleSelectChange = async (componentId: string, value: string | number) => {
-  if (!props.pluginId) return
+  if (!props.instanceId) return
 
   try {
-    const success = await handlePluginUiEvent(props.pluginId, componentId, String(value))
+    const success = await handlePluginUiEvent(props.instanceId, componentId, String(value))
     if (success) {
       console.log('下拉选择框变化事件处理成功:', value)
     } else {
@@ -216,10 +216,10 @@ const handleSelectChange = async (componentId: string, value: string | number) =
 
 // 处理开关变化
 const handleToggleChange = async (componentId: string, value: boolean) => {
-  if (!props.pluginId) return
+  if (!props.instanceId) return
 
   try {
-    const success = await handlePluginUiEvent(props.pluginId, componentId, String(value))
+    const success = await handlePluginUiEvent(props.instanceId, componentId, String(value))
     if (success) {
       console.log('开关变化事件处理成功:', value)
     } else {
@@ -230,10 +230,10 @@ const handleToggleChange = async (componentId: string, value: boolean) => {
   }
 }
 
-// 监听插件ID变化
-watch(() => props.pluginId, (newPluginId) => {
-  if (newPluginId) {
-    loadPluginUI(newPluginId)
+// 监听实例ID变化
+watch(() => props.instanceId, (newInstanceId) => {
+  if (newInstanceId) {
+    loadPluginUI(newInstanceId)
   } else {
     uiComponents.value = []
     Object.keys(textFieldValues).forEach(key => {
@@ -255,16 +255,16 @@ onMounted(async () => {
     console.log('Plugin UI updated event:', event.payload)
     const payload = JSON.parse(event.payload as string)
     console.log('Plugin UI updated event:', payload)
-    if (payload.plugin === props.pluginId) {
-      loadPluginUI(props.pluginId!)
+    if (payload.plugin === props.instanceId) {
+      loadPluginUI(props.instanceId!)
     }
   })
 
   // 监听插件UI刷新事件
   unlistenPluginUiRefresh = await listen('plugin-ui-refreshed', (event) => {
     const payload = JSON.parse(event.payload as string)
-    if (payload.plugin === props.pluginId) {
-      refreshPluginUi(props.pluginId!)
+    if (payload.plugin === props.instanceId) {
+      refreshPluginUi(props.instanceId!)
     }
   })
 })

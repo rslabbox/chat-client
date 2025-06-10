@@ -6,42 +6,42 @@ import { invoke } from '@tauri-apps/api/core'
 import type { PluginUi } from './types'
 
 /**
- * 获取插件UI定义
- * @param pluginId 插件ID
+ * 获取插件实例UI定义
+ * @param instanceId 实例ID
  * @returns 插件UI组件列表的JSON字符串
  */
-export async function getPluginUi(pluginId: string): Promise<PluginUi> {
-  const uiJson = await invoke<string>('get_plugin_ui', { pluginId })
+export async function getPluginUi(instanceId: string): Promise<PluginUi> {
+  const uiJson = await invoke<string>('get_plugin_ui', { instanceId })
   return JSON.parse(uiJson) as PluginUi
 }
 
 /**
  * 刷新ui 专用
- * @param pluginId 插件ID
+ * @param instanceId 实例ID
  * @returns 是否处理成功
  */
-export async function refreshPluginUi(pluginId: string): Promise<boolean> {
+export async function refreshPluginUi(instanceId: string): Promise<boolean> {
   return await invoke<boolean>('handle_plugin_ui_update', {
-    pluginId,
+    instanceId,
     componentId: '',
     value: ''
   })
 }
 
 /**
- * 处理插件UI事件
- * @param pluginId 插件ID
+ * 处理插件实例UI事件
+ * @param instanceId 实例ID
  * @param componentId 组件ID
  * @param value 事件值
  * @returns 是否处理成功
  */
 export async function handlePluginUiEvent(
-  pluginId: string,
+  instanceId: string,
   componentId: string,
   value: string
 ): Promise<boolean> {
   return await invoke<boolean>('handle_plugin_ui_event', {
-    pluginId,
+    instanceId,
     componentId,
     value
   })

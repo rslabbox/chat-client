@@ -27,46 +27,46 @@ pub fn scan_plugins() -> Result<Vec<PluginMetadata>, String> {
     Ok(manager.scan_plugins())
 }
 
-/// 挂载插件
+/// 挂载插件实例
 #[tauri::command]
-pub fn mount_plugin(plugin_id: String) -> Result<String, String> {
+pub fn mount_plugin(plugin_id: String, instance_id: Option<String>) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.mount_plugin(&plugin_id)
+    manager.mount_plugin(&plugin_id, instance_id)
 }
 
-/// 卸载插件
+/// 卸载插件实例
 #[tauri::command]
-pub fn dispose_plugin(plugin_id: String) -> Result<String, String> {
+pub fn dispose_plugin(instance_id: String) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.dispose_plugin(&plugin_id)
+    manager.dispose_plugin(&instance_id)
 }
 
-/// 连接插件
+/// 连接插件实例
 #[tauri::command]
-pub fn connect_plugin(plugin_id: String) -> Result<String, String> {
+pub fn connect_plugin(instance_id: String) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.connect_plugin(&plugin_id)
+    manager.connect_plugin(&instance_id)
 }
 
-/// 断开插件连接
+/// 断开插件实例连接
 #[tauri::command]
-pub fn disconnect_plugin(plugin_id: String) -> Result<String, String> {
+pub fn disconnect_plugin(instance_id: String) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.disconnect_plugin(&plugin_id)
+    manager.disconnect_plugin(&instance_id)
 }
 
-/// 获取插件状态
+/// 获取插件实例状态
 #[tauri::command]
-pub fn get_plugin_status(plugin_id: String) -> Result<Option<(bool, bool)>, String> {
+pub fn get_plugin_status(instance_id: String) -> Result<Option<(bool, bool)>, String> {
     let manager = get_plugin_manager()?;
-    Ok(manager.get_plugin_status(&plugin_id))
+    Ok(manager.get_plugin_status(&instance_id))
 }
 
-/// 获取当前活跃插件
+/// 获取当前活跃插件实例ID
 #[tauri::command]
-pub fn get_current_plugin() -> Result<Option<String>, String> {
+pub fn get_current_instance() -> Result<Option<String>, String> {
     let manager = get_plugin_manager()?;
-    Ok(manager.get_current_plugin())
+    Ok(manager.get_current_instance())
 }
 
 /// 向当前插件发送消息
@@ -76,32 +76,33 @@ pub fn send_message_to_plugin(message: String) -> Result<String, String> {
     manager.send_message_to_current_plugin(&message)
 }
 
-/// 获取插件UI定义
+/// 获取插件实例UI定义
 #[tauri::command]
-pub fn get_plugin_ui(plugin_id: String) -> Result<String, String> {
+pub fn get_plugin_ui(instance_id: String) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.get_plugin_ui(&plugin_id)
+    manager.get_plugin_ui(&instance_id)
 }
 
+/// 处理插件实例UI更新
 #[tauri::command]
 pub fn handle_plugin_ui_update(
-    plugin_id: String,
+    instance_id: String,
     component_id: String,
     value: String,
 ) -> Result<bool, String> {
     let manager = get_plugin_manager()?;
-    manager.handle_plugin_ui_update(&plugin_id, &component_id, &value)
+    manager.handle_plugin_ui_update(&instance_id, &component_id, &value)
 }
 
-/// 处理插件UI事件
+/// 处理插件实例UI事件
 #[tauri::command]
 pub fn handle_plugin_ui_event(
-    plugin_id: String,
+    instance_id: String,
     component_id: String,
     value: String,
 ) -> Result<bool, String> {
     let manager = get_plugin_manager()?;
-    manager.handle_plugin_ui_event(&plugin_id, &component_id, &value)
+    manager.handle_plugin_ui_event(&instance_id, &component_id, &value)
 }
 
 /// 清理所有插件（应用关闭时调用）

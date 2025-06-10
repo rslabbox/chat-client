@@ -79,13 +79,14 @@ import { usePluginStore } from '@/stores/plugins'
 import { useSettingsStore } from '@/stores/settings'
 import SystemSettings from './SystemSettings.vue'
 
+
 const pluginStore = usePluginStore()
 const settingsStore = useSettingsStore()
 const selectedPluginId = ref<string>('')
 const showSettings = ref(false)
 
 // 监听当前插件变化，同步选择框
-watch(() => pluginStore.currentPluginId, (newId) => {
+watch(() => pluginStore.currentPlugin?.id, (newId) => {
   if (newId) {
     selectedPluginId.value = newId
   }
@@ -93,8 +94,9 @@ watch(() => pluginStore.currentPluginId, (newId) => {
 
 // 处理插件切换
 const handlePluginChange = async (pluginId: string) => {
-  if (pluginId && pluginId !== pluginStore.currentPluginId) {
-    await pluginStore.switchToPlugin(pluginId)
+  if (pluginId && pluginId !== pluginStore.currentPlugin?.id) {
+    const instanceId = crypto.randomUUID()
+    await pluginStore.switchToPlugin(pluginId, instanceId)
   }
 }
 

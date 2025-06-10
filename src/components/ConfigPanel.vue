@@ -12,7 +12,7 @@
 
     <div class="config-content">
       <!-- 插件UI组件 -->
-      <PluginUI :plugin-id="pluginStore.currentPluginId || undefined" />
+      <PluginUI :instance-id="pluginStore.currentInstanceId || undefined" />
     </div>
 
     <div class="config-footer">
@@ -37,19 +37,19 @@ import PluginUI from './PluginUI.vue'
 const pluginStore = usePluginStore()
 
 // 计算属性
-const isConnected = computed(() => pluginStore.isCurrentPluginConnected)
+const isConnected = computed(() => pluginStore.isCurrentInstanceConnected)
 
 // 处理连接
 const handleConnect = async () => {
-  if (pluginStore.currentPluginId) {
-    await pluginStore.connectPluginById(pluginStore.currentPluginId)
+  if (pluginStore.currentInstanceId) {
+    await pluginStore.connectPluginInstance(pluginStore.currentInstanceId)
   }
 }
 
 // 处理断开连接
 const handleDisconnect = async () => {
-  if (pluginStore.currentPluginId) {
-    await pluginStore.disconnectPluginById(pluginStore.currentPluginId)
+  if (pluginStore.currentInstanceId) {
+    await pluginStore.disconnectPluginInstance(pluginStore.currentInstanceId)
   }
 }
 </script>

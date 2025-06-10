@@ -7,13 +7,14 @@ import {
   disposePlugin,
   connectPlugin,
   disconnectPlugin,
-  getPluginStatus,
-  getCurrentPlugin,
+  getCurrentInstance,
   sendMessageToPlugin,
   type PluginMetadata
 } from '@/api'
 
-export interface PluginState {
+export interface PluginInstanceState {
+  instanceId: string
+  pluginId: string
   isMounted: boolean
   isConnected: boolean
   isLoading: boolean
@@ -23,39 +24,45 @@ export interface PluginState {
 export const usePluginStore = defineStore('plugins', () => {
   // 状态
   const plugins = ref<PluginMetadata[]>([])
-  const currentPluginId = ref<string | null>(null)
-  const pluginStates = ref<Record<string, PluginState>>({})
+  const currentInstanceId = ref<string | null>(null)
+  const instanceStates = ref<Record<string, PluginInstanceState>>({})
   const isLoading = ref(false)
 
   // 计算属性
+  const currentInstance = computed(() => {
+    if (!currentInstanceId.value) return null
+    return instanceStates.value[currentInstanceId.value] || null
+  })
+
   const currentPlugin = computed(() => {
-    if (!currentPluginId.value) return null
-    return plugins.value.find(p => p.id === currentPluginId.value) || null
+    const instance = currentInstance.value
+    if (!instance) return null
+    return plugins.value.find(p => p.id === instance.pluginId) || null
   })
 
-  const isCurrentPluginConnected = computed(() => {
-    if (!currentPluginId.value) return false
-    return pluginStates.value[currentPluginId.value]?.isConnected || false
+  const isCurrentInstanceConnected = computed(() => {
+    return currentInstance.value?.isConnected || false
   })
 
-  const isCurrentPluginMounted = computed(() => {
-    if (!currentPluginId.value) return false
-    return pluginStates.value[currentPluginId.value]?.isMounted || false
+  const isCurrentInstanceMounted = computed(() => {
+    return currentInstance.value?.isMounted || false
   })
 
-  // 获取插件状态
-  const getPluginState = (pluginId: string): PluginState => {
-    return pluginStates.value[pluginId] || {
-      isMounted: false,
-      isConnected: false,
-      isLoading: false
-    }
+  // 获取实例状态
+  const getInstanceState = (instanceId: string): PluginInstanceState | null => {
+    return instanceStates.value[instanceId] || null
   }
 
-  // 设置插件状态
-  const setPluginState = (pluginId: string, state: Partial<PluginState>) => {
-    pluginStates.value[pluginId] = {
-      ...getPluginState(pluginId),
+  // 设置实例状态
+  const setInstanceState = (instanceId: string, pluginId: string, state: Partial<Omit<PluginInstanceState, 'instanceId' | 'pluginId'>>) => {
+    const existingState = instanceStates.value[instanceId]
+    instanceStates.value[instanceId] = {
+      ...existingState,
+      instanceId,
+      pluginId,
+      isMounted: false,
+      isConnected: false,
+      isLoading: false,
       ...state
     }
   }
@@ -65,22 +72,11 @@ export const usePluginStore = defineStore('plugins', () => {
     try {
       isLoading.value = true
       plugins.value = await scanPlugins()
-      
-      // 获取当前活跃插件
-      const current = await getCurrentPlugin()
-      currentPluginId.value = current || null
-      
-      // 更新所有插件状态
-      for (const plugin of plugins.value) {
-        const status = await getPluginStatus(plugin.id)
-        if (status) {
-          setPluginState(plugin.id, {
-            isMounted: status[0],
-            isConnected: status[1],
-            isLoading: false
-          })
-        }
-      }
+
+      // 获取当前活跃实例
+      const currentInstance = await getCurrentInstance()
+      currentInstanceId.value = currentInstance || null
+
     } catch (error) {
       console.error('Failed to load plugins:', error)
       ElMessage.error('加载插件列表失败')
@@ -89,135 +85,149 @@ export const usePluginStore = defineStore('plugins', () => {
     }
   }
 
-  // 挂载插件
-  const mountPluginById = async (pluginId: string) => {
+  // 挂载插件实例
+  const mountPluginById = async (pluginId: string, instanceId: string) => {
     try {
-      setPluginState(pluginId, { isLoading: true, error: undefined })
-      
-      const result = await mountPlugin(pluginId)
-      
+      const tempInstanceId = instanceId;
+      setInstanceState(tempInstanceId, pluginId, { isLoading: true, error: undefined })
+
+      const result = await mountPlugin(pluginId, instanceId)
+
+      // 从结果中提取实际的实例ID（如果后端返回了实例ID）
+      const actualInstanceId = instanceId || tempInstanceId
+
       // 更新状态
-      currentPluginId.value = pluginId
-      setPluginState(pluginId, {
+      currentInstanceId.value = actualInstanceId
+      setInstanceState(actualInstanceId, pluginId, {
         isMounted: true,
         isConnected: false,
         isLoading: false
       })
-      
-      // 清除其他插件的挂载状态
-      for (const plugin of plugins.value) {
-        if (plugin.id !== pluginId) {
-          setPluginState(plugin.id, {
-            isMounted: false,
-            isConnected: false,
-            isLoading: false
-          })
-        }
-      }
-      
+
       ElMessage.success(result)
-      return true
+      return actualInstanceId
     } catch (error) {
       const errorMsg = error as string
-      setPluginState(pluginId, { 
-        isLoading: false, 
-        error: errorMsg 
+      const tempInstanceId = instanceId;
+      setInstanceState(tempInstanceId, pluginId, {
+        isLoading: false,
+        error: errorMsg
       })
       ElMessage.error(`插件挂载失败: ${errorMsg}`)
-      return false
+      return null
     }
   }
 
-  // 卸载插件
-  const disposePluginById = async (pluginId: string) => {
+  // 卸载插件实例
+  const disposePluginInstance = async (instanceId: string) => {
     try {
-      setPluginState(pluginId, { isLoading: true, error: undefined })
-      
-      const result = await disposePlugin(pluginId)
-      
-      // 更新状态
-      if (currentPluginId.value === pluginId) {
-        currentPluginId.value = null
+      const instance = getInstanceState(instanceId)
+      if (!instance) {
+        throw new Error('实例不存在')
       }
-      setPluginState(pluginId, {
-        isMounted: false,
-        isConnected: false,
-        isLoading: false
-      })
-      
+
+      setInstanceState(instanceId, instance.pluginId, { isLoading: true, error: undefined })
+
+      const result = await disposePlugin(instanceId)
+
+      // 更新状态
+      if (currentInstanceId.value === instanceId) {
+        currentInstanceId.value = null
+      }
+      delete instanceStates.value[instanceId]
+
       ElMessage.success(result)
       return true
     } catch (error) {
       const errorMsg = error as string
-      setPluginState(pluginId, { 
-        isLoading: false, 
-        error: errorMsg 
-      })
-      ElMessage.error(`插件卸载失败: ${errorMsg}`)
+      const instance = getInstanceState(instanceId)
+      if (instance) {
+        setInstanceState(instanceId, instance.pluginId, {
+          isLoading: false,
+          error: errorMsg
+        })
+      }
+      ElMessage.error(`插件实例卸载失败: ${errorMsg}`)
       return false
     }
   }
 
-  // 连接插件
-  const connectPluginById = async (pluginId: string) => {
+  // 连接插件实例
+  const connectPluginInstance = async (instanceId: string) => {
     try {
-      setPluginState(pluginId, { isLoading: true, error: undefined })
-      
-      const result = await connectPlugin(pluginId)
-      
-      setPluginState(pluginId, {
+      const instance = getInstanceState(instanceId)
+      if (!instance) {
+        throw new Error('实例不存在')
+      }
+
+      setInstanceState(instanceId, instance.pluginId, { isLoading: true, error: undefined })
+
+      const result = await connectPlugin(instanceId)
+
+      setInstanceState(instanceId, instance.pluginId, {
         isConnected: true,
         isLoading: false
       })
-      
+
       ElMessage.success(result)
       return true
     } catch (error) {
       const errorMsg = error as string
-      setPluginState(pluginId, { 
-        isLoading: false, 
-        error: errorMsg 
-      })
-      ElMessage.error(`插件连接失败: ${errorMsg}`)
+      const instance = getInstanceState(instanceId)
+      if (instance) {
+        setInstanceState(instanceId, instance.pluginId, {
+          isLoading: false,
+          error: errorMsg
+        })
+      }
+      ElMessage.error(`插件实例连接失败: ${errorMsg}`)
       return false
     }
   }
 
-  // 断开插件连接
-  const disconnectPluginById = async (pluginId: string) => {
+  // 断开插件实例连接
+  const disconnectPluginInstance = async (instanceId: string) => {
     try {
-      setPluginState(pluginId, { isLoading: true, error: undefined })
-      
-      const result = await disconnectPlugin(pluginId)
-      
-      setPluginState(pluginId, {
+      const instance = getInstanceState(instanceId)
+      if (!instance) {
+        throw new Error('实例不存在')
+      }
+
+      setInstanceState(instanceId, instance.pluginId, { isLoading: true, error: undefined })
+
+      const result = await disconnectPlugin(instanceId)
+
+      setInstanceState(instanceId, instance.pluginId, {
         isConnected: false,
         isLoading: false
       })
-      
+
       ElMessage.success(result)
       return true
     } catch (error) {
       const errorMsg = error as string
-      setPluginState(pluginId, { 
-        isLoading: false, 
-        error: errorMsg 
-      })
-      ElMessage.error(`插件断开连接失败: ${errorMsg}`)
+      const instance = getInstanceState(instanceId)
+      if (instance) {
+        setInstanceState(instanceId, instance.pluginId, {
+          isLoading: false,
+          error: errorMsg
+        })
+      }
+      ElMessage.error(`插件实例断开连接失败: ${errorMsg}`)
       return false
     }
   }
 
-  // 切换插件（挂载新插件，自动卸载旧插件）
-  const switchToPlugin = async (pluginId: string) => {
-    return await mountPluginById(pluginId)
+  // 切换到插件实例（挂载新实例，自动卸载旧实例）
+  const switchToPlugin = async (pluginId: string, instanceId: string) => {
+    return await mountPluginById(pluginId, instanceId)
   }
 
-  // 向当前插件发送消息
+  // 向当前插件实例发送消息
   const sendMessage = async (message: string) => {
     try {
-      if (!currentPluginId.value) {
-        throw new Error('没有活跃的插件')
+      if (!currentInstanceId.value) {
+        throw new Error('没有活跃的插件实例')
       }
 
       const response = await sendMessageToPlugin(message)
@@ -232,22 +242,23 @@ export const usePluginStore = defineStore('plugins', () => {
   return {
     // 状态
     plugins,
-    currentPluginId,
-    pluginStates,
+    currentInstanceId,
+    instanceStates,
     isLoading,
-    
+
     // 计算属性
+    currentInstance,
     currentPlugin,
-    isCurrentPluginConnected,
-    isCurrentPluginMounted,
-    
+    isCurrentInstanceConnected,
+    isCurrentInstanceMounted,
+
     // 方法
-    getPluginState,
+    getInstanceState,
     loadPlugins,
     mountPluginById,
-    disposePluginById,
-    connectPluginById,
-    disconnectPluginById,
+    disposePluginInstance,
+    connectPluginInstance,
+    disconnectPluginInstance,
     switchToPlugin,
     sendMessage
   }

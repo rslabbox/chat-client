@@ -72,7 +72,7 @@ export const useMessageStore = defineStore('messages', () => {
     const sessionId = currentSessionId.value
     if (!sessionId) return []
 
-    const currentPluginId = pluginStore.currentPluginId
+    const currentPluginId = pluginStore.currentPlugin?.id
     if (!currentPluginId) return []
 
     const pluginMessages = messagesByPlugin.value[currentPluginId] || []
@@ -81,7 +81,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 计算属性 - 当前插件的会话列表
   const currentPluginSessions = computed(() => {
-    const currentPluginId = pluginStore.currentPluginId
+    const currentPluginId = pluginStore.currentPlugin?.id
     if (!currentPluginId) return []
 
     return Object.values(chatSessions.value)
@@ -91,17 +91,17 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 生成消息ID
   const generateMessageId = () => {
-    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
   }
 
   // 生成会话ID
   const generateSessionId = () => {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
   }
 
   // 创建新会话
   const createNewSession = (pluginId?: string, title?: string) => {
-    const targetPluginId = pluginId || pluginStore.currentPluginId
+    const targetPluginId = pluginId || pluginStore.currentPlugin?.id
     if (!targetPluginId) {
       console.warn('无法创建会话：没有指定插件ID且当前没有活跃插件')
       return null
@@ -168,7 +168,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 添加消息（支持块结构）
   const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info', blocks?: any[]) => {
-    const targetPluginId = pluginId || pluginStore.currentPluginId
+    const targetPluginId = pluginId || pluginStore.currentPlugin?.id
     if (!targetPluginId) {
       console.warn('无法添加消息：没有指定插件ID且当前没有活跃插件')
       return
@@ -225,7 +225,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 清空指定插件的消息
   const clearPluginMessages = (pluginId?: string) => {
-    const targetPluginId = pluginId || pluginStore.currentPluginId
+    const targetPluginId = pluginId || pluginStore.currentPlugin?.id
     if (!targetPluginId) {
       console.warn('无法清空消息：没有指定插件ID且当前没有活跃插件')
       return
@@ -459,7 +459,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 发送消息（集成插件通信）
   const sendMessage = async (content: string) => {
-    const currentPluginId = pluginStore.currentPluginId
+    const currentPluginId = pluginStore.currentPlugin?.id
     if (!currentPluginId) {
       throw new Error('没有活跃的插件')
     }
