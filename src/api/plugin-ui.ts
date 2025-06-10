@@ -12,6 +12,7 @@ import type { PluginUi } from './types'
  */
 export async function getPluginUi(instanceId: string): Promise<PluginUi> {
   const uiJson = await invoke<string>('get_plugin_ui', { instanceId })
+  console.log('获取插件UI定义:', uiJson)
   return JSON.parse(uiJson) as PluginUi
 }
 

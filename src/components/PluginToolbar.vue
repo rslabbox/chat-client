@@ -14,36 +14,6 @@
           />
         </div>
 
-        <div class="plugin-selector">
-          <el-select
-            v-model="selectedPluginId"
-            placeholder="选择插件"
-            style="width: 200px;"
-            @change="handlePluginChange"
-            :loading="pluginStore.isLoading"
-            size="small"
-          >
-            <el-option
-              v-for="plugin in pluginStore.plugins"
-              :key="plugin.id"
-              :label="plugin.name"
-              :value="plugin.id"
-              :disabled="plugin.disabled"
-            >
-            </el-option>
-          </el-select>
-        </div>
-
-        <div class="toolbar-actions">
-          <el-button
-            type="primary"
-            @click="handleRefresh"
-            :icon="Refresh"
-            size="small"
-          >
-            刷新插件
-          </el-button>
-        </div>
       </div>
 
       <!-- 右侧：历史记录面板切换和系统设置按钮 -->
@@ -73,41 +43,13 @@
 </template>
 
 <script setup lang="ts">
-import { Refresh, Setting, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-import { ref, onMounted, watch } from 'vue'
-import { usePluginStore } from '@/stores/plugins'
+import { Setting, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import SystemSettings from './SystemSettings.vue'
-import { usePageManagerStore } from '@/stores/pageManager'
 
-const pageManagerStore = usePageManagerStore()
-
-const pluginStore = usePluginStore()
 const settingsStore = useSettingsStore()
-const selectedPluginId = ref<string>('')
 const showSettings = ref(false)
-
-// 监听当前插件变化，同步选择框
-watch(() => pageManagerStore.currentPluginId, (newId) => {
-  if (newId) {
-    selectedPluginId.value = newId
-  }
-}, { immediate: true })
-
-// 处理插件切换
-const handlePluginChange = async (pluginId: string) => {
-  if (pluginId && pluginId !== pageManagerStore.currentPluginId) {
-    // const instanceId = crypto.randomUUID()
-    // await pluginStore.switchToPlugin(pluginId, instanceId)
-    console.log('切换到插件:', pluginId)
-    await pageManagerStore.createNewPage(pluginId)
-  }
-}
-
-// 处理刷新插件
-const handleRefresh = async () => {
-  await pluginStore.loadPlugins()
-}
 
 // 处理系统设置
 const handleSettings = () => {
@@ -123,11 +65,6 @@ const handleTogglePanel = () => {
 const handleToggleRightPanel = () => {
   settingsStore.toggleRightPanel()
 }
-
-// 组件挂载时加载插件列表
-onMounted(() => {
-  pluginStore.loadPlugins()
-})
 </script>
 
 <style scoped>

@@ -14,8 +14,8 @@ export {
   connectPlugin,
   disconnectPlugin,
   getPluginStatus,
-  getCurrentInstance,
-  sendMessageToPlugin
+  sendMessageToPlugin,
+  sendMessageToCurrentPlugin
 } from './plugins'
 
 // 导出插件UI相关 API

@@ -97,8 +97,8 @@ export const usePageManagerStore = defineStore('pageManager', () => {
     try {
       isLoading.value = true
 
-      // 切换插件实例
-      await pluginStore.switchToPlugin(pageState.pluginId, pageState.instanceId)
+      // 切换到已存在的插件实例（不重新挂载）
+      await pluginStore.switchToExistingInstance(pageState.pluginId, pageState.instanceId)
 
       // 切换会话
       const sessionSwitched = pageState.sessionId ? historyStore.getSessionById(pageState.sessionId) : []

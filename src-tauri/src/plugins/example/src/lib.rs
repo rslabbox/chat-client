@@ -1,7 +1,8 @@
 use plugin_interfaces::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
-    PluginHandler, PluginInterface, PluginMessage, PluginStreamMessage, PluginUiOption,
+    PluginHandler, PluginInterface, PluginInstanceContext, PluginMessage, PluginUiOption,
+    PluginStreamMessage,
 };
 use std::sync::Arc;
 use tokio::{runtime::Runtime, sync::Mutex};
@@ -27,16 +28,16 @@ impl ExamplePlugin {
             runtime: None, // 在 on_mount 时初始化
         }
     }
-    fn theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context) {
+    fn theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context, plugin_ctx: &PluginInstanceContext) {
         ui.horizontal(|ui| {
             if ui.button("Dark").clicked() {
                 log_info!("Dark theme");
-                // 使用新的消息发送功能
-                self.send_message_to_frontend("Dark theme selected");
+                // 使用新的上下文传递API发送消息
+                self.send_message_to_frontend("Dark theme selected", plugin_ctx);
             }
             if ui.button("Light").clicked() {
                 log_info!("Light theme");
-                // 使用新的消息发送功能
+                // 使用新的上下文传递API发送复杂消息
                 self.send_message_to_frontend(r"以下是一个代码块和一个数学公式的示例：
 
 ### 代码块 (Python)
@@ -64,14 +65,16 @@ $$ e^{i\pi} + 1 = 0 $$
 $$ e^{i\theta} = \cos\theta + i\sin\theta $$
 
 当 $\theta = \pi$ 时，得到：
-$$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
+$$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
             }
         });
     }
 
-    async fn demo_streaming_message_background_async(self: Arc<Self>) {
-        // 演示后台异步流式消息的使用
-        match self.send_message_stream_start() {
+    async fn demo_streaming_message_background_async(self: Arc<Self>, plugin_ctx: PluginInstanceContext) {
+        // 重新实现流式消息功能，支持上下文传递
+        log_info!("Starting background stream demo with context support");
+
+        match self.send_message_stream_start(&plugin_ctx) {
             Ok(stream_id) => {
                 log_info!("Started background stream: {}", stream_id);
 
@@ -85,12 +88,13 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
 
                 for (i, chunk) in chunks.iter().enumerate() {
                     let is_final = i == chunks.len() - 1;
-                    if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
+                    if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx) {
                         log_warn!("Failed to send background stream chunk: {}", e);
                         let _ = self.send_message_stream_end(
                             &stream_id,
                             false,
                             Some(&format!("Error: {}", e)),
+                            &plugin_ctx
                         );
                         return;
                     }
@@ -100,7 +104,7 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
                 }
 
                 // 结束流式传输
-                if let Err(e) = self.send_message_stream_end(&stream_id, true, None) {
+                if let Err(e) = self.send_message_stream_end(&stream_id, true, None, &plugin_ctx) {
                     log_warn!("Failed to end background stream: {}", e);
                 }
 
@@ -110,27 +114,24 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
                 log_warn!("Failed to start background stream: {}", e);
             }
         }
+        
     }
 
-    fn demo_streaming_message_background(self: Arc<Self>) {
+    fn demo_streaming_message_background(self: Arc<Self>, plugin_ctx: PluginInstanceContext) {
         // 使用 tokio runtime 执行异步任务
         if let Some(runtime) = self.runtime.clone() {
             let self_clone = self.clone();
             runtime.spawn(async move {
-                self_clone.demo_streaming_message_background_async().await;
+                self_clone.demo_streaming_message_background_async(plugin_ctx).await;
             });
         } else {
             log_warn!("Tokio runtime not initialized, falling back to thread");
-            // 如果 runtime 未初始化，回退到原来的线程方式
-            std::thread::spawn(move || {
-                // 这里可以保留原来的同步实现作为备用
-                log_warn!("Using fallback thread implementation");
-            });
         }
     }
 
     /// 专门用于演示在异步函数中修改 age 的函数
-    async fn modify_age_async(&self) {
+    /// 通过克隆必要的数据来解决生命周期问题
+    async fn modify_age_async(&self, instance_context: PluginInstanceContext) {
         log_info!("Starting async age modification...");
 
         // 模拟一些异步工作
@@ -149,26 +150,30 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
             log_info!("Age modified from {} to {}", old_age, *age_guard);
         }
 
-        // 通知前端
+        // 通知前端 - 使用克隆的上下文
         let new_age = {
             let age_guard = self.age.lock().await;
             *age_guard
         };
 
+        // 现在可以正确地发送消息到前端
         self.send_message_to_frontend(&format!(
             "Age updated from {} to {} (+{})",
             old_age, new_age, 5
-        ));
-        self.refresh_ui();
+        ), &instance_context);
+
+        // 刷新UI
+        self.refresh_ui(&instance_context);
     }
 
     /// 启动异步修改 age 的任务
-    fn start_async_age_modification(&self) {
+    fn start_async_age_modification(&self, plugin_ctx: &PluginInstanceContext) {
         if let Some(runtime) = &self.runtime {
             let self_clone = Arc::new(self.clone());
+            let context_clone = plugin_ctx.clone(); // 克隆上下文以便在异步任务中使用
 
             runtime.spawn(async move {
-                self_clone.modify_age_async().await;
+                self_clone.modify_age_async(context_clone).await;
             });
         } else {
             log_warn!("Cannot modify age: runtime not initialized");
@@ -177,23 +182,24 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$");
 }
 
 impl PluginHandler for ExamplePlugin {
-    fn update_ui(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn update_ui(&mut self, ctx: &Context, ui: &mut Ui, plugin_ctx: &PluginInstanceContext) {
         // Simplified UI to test memory safety
         ui.label("Test Plugin");
         ui.label("Simple test without complex components");
 
-        self.theme_switcher(ui, ctx);
+        self.theme_switcher(ui, ctx, plugin_ctx);
 
         if ui.button("Background Stream Demo").clicked() {
             log_info!("Starting stream demo");
             // 创建Arc包装的self引用，使用 tokio 异步任务
             let self_arc = Arc::new(self.clone());
-            self_arc.demo_streaming_message_background();
+            let context_clone = plugin_ctx.clone();
+            self_arc.demo_streaming_message_background(context_clone);
         }
 
         if ui.button("Age +5 (Async)").clicked() {
             log_info!("Starting async age increment by 5");
-            self.start_async_age_modification();
+            self.start_async_age_modification(plugin_ctx);
         }
 
         let text_response = ui.text_edit_singleline(&mut self.name);
@@ -240,15 +246,15 @@ impl PluginHandler for ExamplePlugin {
     }
 
     // 挂载插件的时候调用
-    fn on_mount(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let metadata = self.get_metadata();
+    fn on_mount(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = plugin_ctx.get_metadata();
         log_info!("[{}] Plugin mount successfully", metadata.name);
         log_info!(
             "Config Metadata: id={}, name={}, version={}, instance_id={}",
             metadata.id,
             metadata.name,
             metadata.version,
-            metadata.instance_id.unwrap_or("None".to_string())
+            metadata.instance_id.clone().unwrap_or("None".to_string())
         );
 
         // 初始化 tokio 异步运行时
@@ -265,32 +271,32 @@ impl PluginHandler for ExamplePlugin {
         Ok(())
     }
 
-    fn on_dispose(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_dispose(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
         log_info!(
             "[{}] Plugin disposed successfully",
-            self.get_metadata().name
+            plugin_ctx.get_metadata().name
         );
         Ok(())
     }
 
-    fn on_connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected", self.get_metadata().name);
+    fn on_connect(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
+        log_info!("[{}] Connected", plugin_ctx.get_metadata().name);
         Ok(())
     }
 
-    fn on_disconnect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected", self.get_metadata().name);
+    fn on_disconnect(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
+        log_warn!("[{}] Disconnected", plugin_ctx.get_metadata().name);
         Ok(())
     }
 
-    fn handle_message(&self, message: &str) -> Result<String, Box<dyn std::error::Error>> {
+    fn handle_message(&mut self, message: &str, plugin_ctx: &PluginInstanceContext) -> Result<String, Box<dyn std::error::Error>> {
         log_info!(
             "[{}] Received message: {}",
-            self.get_metadata().name,
+            plugin_ctx.get_metadata().name,
             message
         );
 
-        let response = format!("Echo from {}: {}", self.get_metadata().name, message);
+        let response = format!("Echo from {}: {}", plugin_ctx.get_metadata().name, message);
 
         // 向前端发送响应
         // send_message_to_frontend!("收到消息: {}", message);

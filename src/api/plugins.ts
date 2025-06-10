@@ -10,6 +10,7 @@ import type { PluginMetadata } from './types'
  * @returns Promise<PluginMetadata[]> 插件列表
  */
 export async function scanPlugins(): Promise<PluginMetadata[]> {
+  console.log('扫描插件列表')
   try {
     const plugins = await invoke<PluginMetadata[]>('scan_plugins')
     return plugins
@@ -66,18 +67,29 @@ export async function getPluginStatus(instanceId: string): Promise<[boolean, boo
 }
 
 /**
- * 获取当前活跃插件实例ID
- * @returns Promise<string | null> 当前实例ID 或 null
- */
-export async function getCurrentInstance(): Promise<string | null> {
-  return await invoke<string | null>('get_current_instance')
-}
-
-/**
- * 向当前插件发送消息
+ * 向指定插件实例发送消息
+ * @param pluginId 插件ID
+ * @param instanceId 实例ID
  * @param message 要发送的消息
  * @returns Promise<string> 插件返回的响应
  */
-export async function sendMessageToPlugin(message: string): Promise<string> {
-  return await invoke<string>('send_message_to_plugin', { message })
+export async function sendMessageToPlugin(
+  pluginId: string,
+  instanceId: string,
+  message: string
+): Promise<string> {
+  return await invoke<string>('send_message_to_plugin', {
+    pluginId,
+    instanceId,
+    message
+  })
+}
+
+/**
+ * 向当前插件发送消息（已弃用，保留向后兼容性）
+ * @param message 要发送的消息
+ * @returns Promise<string> 插件返回的响应
+ */
+export async function sendMessageToCurrentPlugin(message: string): Promise<string> {
+  return await invoke<string>('send_message_to_current_plugin', { message })
 }

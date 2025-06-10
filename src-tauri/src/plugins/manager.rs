@@ -52,7 +52,6 @@ pub struct PluginManager {
     loader: PluginLoader,
     instances: Arc<Mutex<HashMap<String, PluginInstance>>>, // 键为 instance_id
     plugin_instances: Arc<Mutex<HashMap<String, Vec<String>>>>, // 键为 plugin_id，值为 instance_id 列表
-    current_instance: Arc<Mutex<Option<String>>>,               // 当前活跃的实例ID
     app_handle: AppHandle,
 }
 
@@ -62,7 +61,6 @@ impl PluginManager {
             loader: PluginLoader::new(),
             instances: Arc::new(Mutex::new(HashMap::new())),
             plugin_instances: Arc::new(Mutex::new(HashMap::new())),
-            current_instance: Arc::new(Mutex::new(None)),
             app_handle,
         }
     }
@@ -167,27 +165,11 @@ impl PluginManager {
         // 生成或使用提供的实例ID
         let instance_id = instance_id.unwrap_or_else(|| Uuid::new_v4().to_string());
 
-        // 获取当前实例ID
-        let current_instance_id = {
-            let current = self.current_instance.lock().unwrap();
-            current.clone()
-        };
-
-        // 先卸载当前实例（如果存在且不是同一个实例）
-        if let Some(current_id) = current_instance_id {
-            if current_id != instance_id {
-                if let Err(e) = self.dispose_plugin(&current_id) {
-                    log_error!("Failed to dispose current plugin instance: {}", e);
-                }
-            }
-        }
-
         let mut instances = self.instances.lock().unwrap();
 
         // 如果实例已经存在且已挂载，直接返回成功
         if let Some(instance) = instances.get(&instance_id) {
             if instance.is_mounted {
-                *self.current_instance.lock().unwrap() = Some(instance_id.clone());
                 return Ok(format!("插件实例 {} 已经挂载", instance.metadata.name));
             }
         }
@@ -299,8 +281,6 @@ impl PluginManager {
                     .push(instance_id.clone());
                 drop(plugin_instances);
 
-                *self.current_instance.lock().unwrap() = Some(instance_id.clone());
-
                 Ok(format!(
                     "插件 {} 实例 {} 挂载成功",
                     plugin_metadata.name, instance_id
@@ -359,8 +339,7 @@ impl PluginManager {
 
             instance.is_mounted = false;
 
-            // 清理全局插件元数据
-            plugin_interfaces::clear_plugin_metadata();
+            // TODO: 清理插件元数据 - 需要重新实现以支持实例级别管理
 
             // 从插件实例映射中移除
             let mut plugin_instances = self.plugin_instances.lock().unwrap();
@@ -371,13 +350,6 @@ impl PluginManager {
                 }
             }
             drop(plugin_instances);
-
-            // 如果这是当前实例，清除当前实例状态
-            let mut current = self.current_instance.lock().unwrap();
-            if current.as_ref() == Some(&instance_id.to_string()) {
-                *current = None;
-            }
-            drop(current);
 
             match result {
                 Ok(_) => Ok(format!(
@@ -476,51 +448,13 @@ impl PluginManager {
             .map(|instance| (instance.is_mounted, instance.is_connected))
     }
 
-    /// 获取当前活跃插件实例ID
-    pub fn get_current_instance(&self) -> Option<String> {
-        self.current_instance.lock().unwrap().clone()
-    }
-
-    /// 向当前活跃插件实例发送消息
-    pub fn send_message_to_current_plugin(&self, message: &str) -> Result<String, String> {
-        let instances = self.instances.lock().unwrap();
-        let current_instance_id = self.current_instance.lock().unwrap();
-
-        if let Some(instance_id) = current_instance_id.as_ref() {
-            if let Some(instance) = instances.get(instance_id) {
-                if instance.is_mounted {
-                    unsafe {
-                        let message_cstr = CString::new(message).map_err(|_| "消息转换失败")?;
-                        let mut result_ptr: *mut c_char = std::ptr::null_mut();
-                        let handle_result = ((*instance.handler).handle_message)(
-                            (*instance.handler).plugin_ptr,
-                            message_cstr.as_ptr(),
-                            &mut result_ptr,
-                        );
-
-                        if handle_result == 0 && !result_ptr.is_null() {
-                            let response = CStr::from_ptr(result_ptr).to_string_lossy().to_string();
-                            // 释放插件分配的内存
-                            let _ = CString::from_raw(result_ptr);
-                            Ok(response)
-                        } else {
-                            Err("插件处理消息失败".to_string())
-                        }
-                    }
-                } else {
-                    Err("当前插件实例未挂载".to_string())
-                }
-            } else {
-                Err("当前插件实例未找到".to_string())
-            }
-        } else {
-            Err("没有活跃的插件实例".to_string())
-        }
-    }
-
     /// 获取插件实例UI定义
     pub fn get_plugin_ui(&self, instance_id: &str) -> Result<String, String> {
         let mut instances = self.instances.lock().unwrap();
+        log_info!("获取插件UI定义: {} {}", instance_id, instances.len());
+        for (id, instance) in instances.iter() {
+            log_info!("插件实例: {} ({})", instance.metadata.name, id);
+        }
 
         if let Some(instance) = instances.get_mut(instance_id) {
             if instance.is_mounted {
@@ -540,7 +474,7 @@ impl PluginManager {
                 Err("插件实例未挂载".to_string())
             }
         } else {
-            Err("插件实例未找到".to_string())
+            Err("插件实例未找到 1".to_string())
         }
     }
 
@@ -601,10 +535,10 @@ impl PluginManager {
                 }
                 Ok(true)
             } else {
-                Err("插件实例未找到".to_string())
+                Err("插件实例未找到 2".to_string())
             }
         } else {
-            return Err("插件实例未找到".to_string());
+            return Err("插件实例未找到 3".to_string());
         }
     }
 
@@ -686,7 +620,69 @@ impl PluginManager {
                 Err("插件实例未挂载".to_string())
             }
         } else {
-            Err("插件实例未找到".to_string())
+            Err("插件实例未找到 4".to_string())
+        }
+    }
+
+    /// 向指定插件实例发送消息
+    pub fn send_message_to_plugin_instance(
+        &self,
+        plugin_id: &str,
+        instance_id: &str,
+        message: &str,
+    ) -> Result<String, String> {
+        let mut instances = self.instances.lock().unwrap();
+
+        if let Some(instance) = instances.get_mut(instance_id) {
+            // 验证插件ID是否匹配
+            if instance.plugin_id != plugin_id {
+                return Err(format!(
+                    "插件ID不匹配: 期望 {}, 实际 {}",
+                    plugin_id, instance.plugin_id
+                ));
+            }
+
+            if !instance.is_mounted {
+                return Err(format!("插件实例 {} 未挂载", instance_id));
+            }
+
+            if !instance.is_connected {
+                return Err(format!("插件实例 {} 未连接", instance_id));
+            }
+
+            // 调用插件的 handle_message 方法
+            let message_cstr = std::ffi::CString::new(message)
+                .map_err(|_| "消息转换失败".to_string())?;
+
+            let mut response_ptr: *mut std::ffi::c_char = std::ptr::null_mut();
+            let result = unsafe {
+                ((*instance.handler).handle_message)(
+                    (*instance.handler).plugin_ptr,
+                    message_cstr.as_ptr(),
+                    &mut response_ptr,
+                )
+            };
+
+            if result != 0 {
+                return Err("插件处理消息失败".to_string());
+            }
+
+            if response_ptr.is_null() {
+                return Err("插件返回空响应".to_string());
+            }
+
+            let response = unsafe {
+                let c_str = std::ffi::CStr::from_ptr(response_ptr);
+                let response_str = c_str.to_str()
+                    .map_err(|_| "响应转换失败".to_string())?
+                    .to_string();
+
+                response_str
+            };
+
+            Ok(response)
+        } else {
+            Err(format!("插件实例 {} 未找到", instance_id))
         }
     }
 
@@ -761,7 +757,6 @@ impl PluginManager {
         // 清除所有映射和当前实例状态
         drop(instances);
         *self.plugin_instances.lock().unwrap() = HashMap::new();
-        *self.current_instance.lock().unwrap() = None;
 
         log_info!("所有插件实例清理完成");
     }

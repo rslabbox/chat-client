@@ -47,6 +47,7 @@ export const usePluginStore = defineStore('plugins', () => {
 
   // 加载插件列表
   const loadPlugins = async () => {
+    console.log('加载插件列表')
     try {
       isLoading.value = true
       plugins.value = await scanPlugins()
@@ -179,15 +180,60 @@ export const usePluginStore = defineStore('plugins', () => {
     }
   }
 
-  // 切换到插件实例（挂载新实例，自动卸载旧实例）
-  const switchToPlugin = async (pluginId: string, instanceId: string) => {
-    return await mountPluginById(pluginId, instanceId)
+  // 切换到已存在的插件实例（不重新挂载）
+  const switchToExistingInstance = async (pluginId: string, instanceId: string) => {
+    try {
+      // 检查实例是否存在
+      const instance = getInstanceState(instanceId)
+      if (!instance) {
+        throw new Error(`插件实例 ${instanceId} 不存在`)
+      }
+
+      // 如果实例存在但未挂载，则挂载它
+      if (!instance.isMounted) {
+        return await mountPluginById(pluginId, instanceId)
+      }
+
+      // 实例已存在且已挂载，直接返回成功
+      return instanceId
+    } catch (error) {
+      console.error('切换到插件实例失败:', error)
+      throw error
+    }
   }
 
   // 向当前插件实例发送消息
-  const sendMessage = async (message: string) => {
+  const sendMessage = async (message: string, pluginId: string | null, instanceId: string | null) => {
     try {
-      const response = await sendMessageToPlugin(message)
+      // 如果没有提供 pluginId 和 instanceId，尝试从当前上下文获取
+      let targetPluginId = pluginId
+      let targetInstanceId = instanceId
+
+      if (!targetPluginId || !targetInstanceId) {
+        // 尝试从 tabManager 获取当前活跃标签页的信息
+        const { useTabManagerStore } = await import('./tabManager')
+        const tabManagerStore = useTabManagerStore()
+
+        if (tabManagerStore.activeTab) {
+          targetPluginId = targetPluginId || tabManagerStore.activeTab.pluginId
+          targetInstanceId = targetInstanceId || tabManagerStore.activeTab.instanceId
+        }
+
+        // 如果还是没有，尝试从 pageManager 获取
+        if (!targetPluginId || !targetInstanceId) {
+          const { usePageManagerStore } = await import('./pageManager')
+          const pageManagerStore = usePageManagerStore()
+
+          targetPluginId = targetPluginId || pageManagerStore.currentPluginId || null
+          targetInstanceId = targetInstanceId || pageManagerStore.currentInstanceId || null
+        }
+      }
+
+      if (!targetPluginId || !targetInstanceId) {
+        throw new Error('无法确定目标插件实例：请确保有活跃的插件标签页或提供 pluginId 和 instanceId 参数')
+      }
+
+      const response = await sendMessageToPlugin(targetPluginId, targetInstanceId, message)
       return response
     } catch (error) {
       const errorMsg = error as string
@@ -195,6 +241,8 @@ export const usePluginStore = defineStore('plugins', () => {
       throw error
     }
   }
+
+  loadPlugins()
 
   return {
     // 状态
@@ -209,7 +257,7 @@ export const usePluginStore = defineStore('plugins', () => {
     disposePluginInstance,
     connectPluginInstance,
     disconnectPluginInstance,
-    switchToPlugin,
+    switchToExistingInstance,
     sendMessage
   }
 })

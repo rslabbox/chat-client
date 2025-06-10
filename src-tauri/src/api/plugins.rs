@@ -62,18 +62,15 @@ pub fn get_plugin_status(instance_id: String) -> Result<Option<(bool, bool)>, St
     Ok(manager.get_plugin_status(&instance_id))
 }
 
-/// 获取当前活跃插件实例ID
+/// 向指定插件实例发送消息
 #[tauri::command]
-pub fn get_current_instance() -> Result<Option<String>, String> {
+pub fn send_message_to_plugin(
+    plugin_id: String,
+    instance_id: String,
+    message: String,
+) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    Ok(manager.get_current_instance())
-}
-
-/// 向当前插件发送消息
-#[tauri::command]
-pub fn send_message_to_plugin(message: String) -> Result<String, String> {
-    let manager = get_plugin_manager()?;
-    manager.send_message_to_current_plugin(&message)
+    manager.send_message_to_plugin_instance(&plugin_id, &instance_id, &message)
 }
 
 /// 获取插件实例UI定义

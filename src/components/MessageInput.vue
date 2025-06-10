@@ -35,9 +35,11 @@ import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
 import { usePageManagerStore } from '@/stores/pageManager'
+import { usePluginStore } from '@/stores/plugins'
 
 const historyStore = useHistoryStore()
 const pageManagerStore = usePageManagerStore()
+const pluginStore = usePluginStore()
 const inputText = ref('')
 
 const handleSend = async () => {
@@ -49,8 +51,10 @@ const handleSend = async () => {
 
   try {
     let currentSessionId = pageManagerStore.currentSessionId
+    const currentPluginId = pageManagerStore.currentPluginId
+    const currentInstantId = pageManagerStore.currentInstanceId
     if (!currentSessionId) {
-      if (!pageManagerStore.currentPluginId) {
+      if (!currentPluginId) {
         throw new Error('当前没有活跃的插件')
       }
 
@@ -61,6 +65,7 @@ const handleSend = async () => {
     }
 
     historyStore.addMessageToSession(currentSessionId, content, historyStore.generateMessageId(), 'user')
+    pluginStore.sendMessage(content, currentPluginId, currentInstantId)
     inputText.value = ''
   } catch (error) {
     // 错误已在 store 中处理，这里不需要额外处理
