@@ -94,7 +94,6 @@ const getMessageClasses = () => {
 
 // 时间格式化
 const formatTime = (date: Date) => {
-  console.log('formatTime', date)
   return date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',

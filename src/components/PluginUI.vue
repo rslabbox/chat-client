@@ -263,7 +263,7 @@ onMounted(async () => {
   // 监听插件UI刷新事件
   unlistenPluginUiRefresh = await listen('plugin-ui-refreshed', (event) => {
     const payload = JSON.parse(event.payload as string)
-    if (payload.plugin === props.instanceId) {
+    if (payload.instance === props.instanceId) {
       refreshPluginUi(props.instanceId!)
     }
   })
