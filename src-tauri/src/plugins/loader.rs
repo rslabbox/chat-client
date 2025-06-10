@@ -100,6 +100,7 @@ impl PluginLoader {
                     author: config.plugin.author,
                     library_path,
                     config_path: config_path.to_string_lossy().to_string(),
+                    instance_id: None,
                 })
             }
             Err(e) => {
