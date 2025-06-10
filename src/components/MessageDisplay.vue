@@ -9,8 +9,11 @@
 
     <div ref="messageContainer" class="message-container">
       <MessageItem v-for="(message, index) in currentMessages" :key="message.id" :message="message" :index="index"
-        :total="currentMessages.length" :isStreaming="message.isStreaming" @delete-message="handleDeleteMessage"
-        @copy-message="handleCopyMessage" />
+        :total="currentMessages.length" :isStreaming="message.type === 'streaming'"
+        @delete-message="handleDeleteMessage" @copy-message="handleCopyMessage" />
+      <!-- <div v-for="(message, index) in currentMessages" :key="message.id" :index="index">
+        {{ message.content }}
+      </div> -->
 
       <div v-if="currentMessages.length === 0" class="empty-messages">
         <el-empty description="暂无消息" :image-size="100" />
@@ -20,15 +23,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, nextTick, watch, computed } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useMessageStore } from '@/stores/messages'
+import { useHistoryStore } from '@/stores/history'
+import { usePageManagerStore } from '@/stores/pageManager'
 import MessageItem from './Messages/MessageItem.vue'
 
-const messageStore = useMessageStore()
-const { currentMessages } = storeToRefs(messageStore)
+const historyStore = useHistoryStore()
+const pageManagerStore = usePageManagerStore()
+
+// 使用页面管理器的当前会话来获取消息
+const currentMessages = computed(() => {
+  const sessionId = pageManagerStore.currentSessionId
+  const pluginId = pageManagerStore.currentPluginId
+
+  console.log('当前会话ID:', sessionId)
+  console.log('当前插件ID:', pluginId)
+
+  if (!sessionId || !pluginId) return []
+
+  return historyStore.getMessagesBySessionId(sessionId) || []
+})
 
 const messageContainer = ref<HTMLElement>()
 
@@ -46,11 +62,19 @@ const handleCopyMessage = (content: string) => {
   })
 }
 
-const handleNewChat = () => {
-  const newSession = messageStore.createNewSession()
-  if (newSession) {
+const handleNewChat = async () => {
+  try {
+    // 检查当前是否有活跃的插件
+    if (!pageManagerStore.currentPluginId) {
+      ElMessage.warning('请先选择一个插件')
+      return
+    }
+
+    // 使用页面管理器创建新页面（包含新的插件实例和会话）
+    await pageManagerStore.createNewPage(pageManagerStore.currentPluginId, '新的聊天')
     ElMessage.success('已创建新的聊天')
-  } else {
+  } catch (error) {
+    console.error('创建新聊天失败:', error)
     ElMessage.error('创建聊天失败')
   }
 }

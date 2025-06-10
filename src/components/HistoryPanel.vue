@@ -14,13 +14,13 @@
     <!-- 历史对话内容 -->
     <div v-show="activeTab === 'history'" class="session-list">
       <div v-for="session in currentPluginSessions" :key="session.id"
-        :class="['session-item', { 'active': session.id === currentSessionId }]"
+        :class="['session-item', { 'active': session.id === pageManagerStore.currentSessionId }]"
         @click="handleSessionClick(session.id)">
         <div class="session-content">
           <div class="session-title">{{ session.title }}</div>
           <div class="session-meta">
             <span class="session-time">{{ formatTime(session.updatedAt) }}</span>
-            <span class="session-count">{{ session.messageCount }} 条消息</span>
+            <span class="session-count">{{ session.messages.length }} 条消息</span>
           </div>
         </div>
         <div class="session-actions">
@@ -82,15 +82,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, reactive, computed } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useMessageStore } from '@/stores/messages'
+import { useHistoryStore } from '@/stores/history'
+import { usePageManagerStore } from '@/stores/pageManager'
 import { FolderAdd } from '@element-plus/icons-vue'
 
-const messageStore = useMessageStore()
-const { currentPluginSessions, currentSessionId } = storeToRefs(messageStore)
+const historyStore = useHistoryStore()
+const pageManagerStore = usePageManagerStore()
+
+// 获取当前插件的会话列表
+const currentPluginSessions = computed(() => {
+  if (!pageManagerStore.currentPluginId) return []
+
+  return historyStore.getSessionsByPluginId(pageManagerStore.currentPluginId)
+})
 
 // 标签页状态
 const activeTab = ref<'history' | 'shortcuts'>('history')
@@ -136,9 +143,13 @@ const formatTime = (date: Date) => {
   }
 }
 
-const handleSessionClick = (sessionId: string) => {
-  if (messageStore.switchToSession(sessionId)) {
+const handleSessionClick = async (sessionId: string) => {
+  try {
+    await pageManagerStore.switchToSession(sessionId)
     ElMessage.success('已切换到该对话')
+  } catch (error) {
+    console.error('切换会话失败:', error)
+    ElMessage.error('切换会话失败')
   }
 }
 
@@ -154,8 +165,11 @@ const handleDeleteSession = async (sessionId: string) => {
       }
     )
 
-    if (messageStore.deleteSession(sessionId)) {
+    if (historyStore.deleteSession(sessionId)) {
       ElMessage.success('对话已删除')
+      if (sessionId == pageManagerStore.currentSessionId && pageManagerStore.currentPage) {
+        pageManagerStore.currentPage.sessionId = null
+      }
     } else {
       ElMessage.error('删除失败')
     }
@@ -166,7 +180,7 @@ const handleDeleteSession = async (sessionId: string) => {
 
 // 快捷短语相关方法
 const generateShortcutId = () => {
-  return `shortcut_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  return `shortcut_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 }
 
 const loadShortcuts = () => {
@@ -242,7 +256,11 @@ const handleDeleteShortcut = async (shortcutId: string) => {
 const handleShortcutClick = async (content: string) => {
   try {
     // 直接发送快捷短语内容
-    await messageStore.sendMessage(content)
+    const currentSessionId = pageManagerStore.currentSessionId
+    if (!currentSessionId) {
+      throw new Error('当前没有活跃的会话')
+    }
+    historyStore.addMessageToSession(currentSessionId, content, historyStore.generateMessageId(), 'user')
     ElMessage.success('快捷短语已发送')
   } catch (error) {
     ElMessage.error('发送失败，请检查插件连接状态')

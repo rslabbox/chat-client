@@ -14,7 +14,7 @@
       <div class="message-footer">
         <MessageTokens :message="message" />
         <div class="message-time">
-          {{ formatTime(message.timestamp) }}
+          {{ formatTime(message.createdAt) }}
         </div>
       </div>
 
@@ -32,9 +32,10 @@ import MessageErrorBoundary from './MessageErrorBoundary.vue'
 import MessageHeader from './MessageHeader.vue'
 import MessageMenubar from './MessageMenubar.vue'
 import MessageTokens from './MessageTokens.vue'
+import { BaseMessage } from '@/stores/history'
 
 interface Props {
-  message: any
+  message: BaseMessage
   index?: number
   total?: number
   hideMenuBar?: boolean
@@ -93,6 +94,7 @@ const getMessageClasses = () => {
 
 // 时间格式化
 const formatTime = (date: Date) => {
+  console.log('formatTime', date)
   return date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',

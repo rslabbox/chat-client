@@ -78,7 +78,9 @@ import { ref, onMounted, watch } from 'vue'
 import { usePluginStore } from '@/stores/plugins'
 import { useSettingsStore } from '@/stores/settings'
 import SystemSettings from './SystemSettings.vue'
+import { usePageManagerStore } from '@/stores/pageManager'
 
+const pageManagerStore = usePageManagerStore()
 
 const pluginStore = usePluginStore()
 const settingsStore = useSettingsStore()
@@ -86,7 +88,7 @@ const selectedPluginId = ref<string>('')
 const showSettings = ref(false)
 
 // 监听当前插件变化，同步选择框
-watch(() => pluginStore.currentPlugin?.id, (newId) => {
+watch(() => pageManagerStore.currentPluginId, (newId) => {
   if (newId) {
     selectedPluginId.value = newId
   }
@@ -94,9 +96,11 @@ watch(() => pluginStore.currentPlugin?.id, (newId) => {
 
 // 处理插件切换
 const handlePluginChange = async (pluginId: string) => {
-  if (pluginId && pluginId !== pluginStore.currentPlugin?.id) {
-    const instanceId = crypto.randomUUID()
-    await pluginStore.switchToPlugin(pluginId, instanceId)
+  if (pluginId && pluginId !== pageManagerStore.currentPluginId) {
+    // const instanceId = crypto.randomUUID()
+    // await pluginStore.switchToPlugin(pluginId, instanceId)
+    console.log('切换到插件:', pluginId)
+    await pageManagerStore.createNewPage(pluginId)
   }
 }
 

@@ -21,9 +21,9 @@
         <span v-if="message.status" class="status">
           {{ getStatusText(message.status) }}
         </span>
-        <span class="timestamp">
-          {{ formatTime(message.timestamp) }}
-        </span>
+        <!-- <span class="timestamp">
+          {{ formatTime(message.createdAt) }}
+        </span> -->
         <span v-if="showIndex" class="index">
           #{{ index + 1 }}/{{ total }}
         </span>
@@ -31,20 +31,21 @@
     </div>
 
     <!-- 模型信息 -->
-    <div v-if="message.model" class="model-info">
+    <!-- <div v-if="message.model" class="model-info">
       <el-tag size="small" type="info">
         {{ message.model.name || message.model.id }}
       </el-tag>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { User, Setting } from '@element-plus/icons-vue'
+import { BaseMessage } from '@/stores/history'
 
 interface Props {
-  message: any
+  message: BaseMessage
   index?: number
   total?: number
   showIndex?: boolean
@@ -61,8 +62,8 @@ const senderName = computed(() => {
   switch (props.message.role) {
     case 'user':
       return '用户'
-    case 'assistant':
-      return props.message.assistant?.name || '插件'
+    case 'plugin':
+      return '插件'
     case 'system':
       return '系统'
     default:
@@ -72,9 +73,9 @@ const senderName = computed(() => {
 
 // 计算头像
 const avatarSrc = computed(() => {
-  if (props.message.role === 'assistant' && props.message.assistant?.avatar) {
-    return props.message.assistant.avatar
-  }
+  // if (props.message.role === 'assistant' && props.message.assistant?.avatar) {
+  //   return props.message.assistant.avatar
+  // }
   return null
 })
 
@@ -82,7 +83,7 @@ const avatarIcon = computed(() => {
   switch (props.message.role) {
     case 'user':
       return User
-    case 'assistant':
+    case 'plugin':
       return Setting
     case 'system':
       return Setting
@@ -95,7 +96,7 @@ const avatarBgColor = computed(() => {
   switch (props.message.role) {
     case 'user':
       return 'var(--el-color-primary)'
-    case 'assistant':
+    case 'plugin':
       return 'var(--el-color-success)'
     case 'system':
       return 'var(--el-color-warning)'
@@ -103,15 +104,6 @@ const avatarBgColor = computed(() => {
       return 'var(--el-color-info)'
   }
 })
-
-// 格式化时间
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
 
 // 获取状态文本
 const getStatusText = (status: string) => {

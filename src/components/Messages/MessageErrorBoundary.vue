@@ -43,10 +43,11 @@
 </template>
 
 <script setup lang="ts">
+import { BaseMessage } from '@/stores/history';
 import { ref, onErrorCaptured, computed } from 'vue'
 
 interface Props {
-  message?: any
+  message?: BaseMessage
 }
 
 const props = defineProps<Props>()

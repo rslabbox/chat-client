@@ -56,7 +56,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // UI状态
   const leftPanelVisible = ref(true)
-  const rightPanelVisible = ref(false)
+  const rightPanelVisible = ref(true)
 
   // 本地存储键名
   const STORAGE_KEY = 'chat-client-settings'

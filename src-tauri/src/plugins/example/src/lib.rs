@@ -44,7 +44,7 @@ impl ExamplePlugin {
 
     async fn demo_streaming_message_background_async(self: Arc<Self>) {
         // 演示后台异步流式消息的使用
-        match self.send_message_stream_start("demo", Some("Background Streaming demo")) {
+        match self.send_message_stream_start() {
             Ok(stream_id) => {
                 log_info!("Started background stream: {}", stream_id);
 

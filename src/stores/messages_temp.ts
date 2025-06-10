@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { usePluginStore } from './plugins'
+import { usePageManagerStore } from './pageManager'
 
 export interface PluginMessage {
   id: string
@@ -60,36 +61,14 @@ export const useMessageStore = defineStore('messages', () => {
   const messagesByPlugin = ref<PluginMessages>({})
   const chatSessions = ref<ChatSessions>({})
   const streamMessages = ref<StreamMessages>({})
-  const currentSessionId = ref<string | null>(null)
   const isLoading = ref(false)
 
   // 获取插件 store 实例
   const pluginStore = usePluginStore()
+  const pageManagerStore = usePageManagerStore()
 
   // 事件监听器
   const eventListeners = ref<UnlistenFn[]>([])
-
-  // 计算属性 - 当前会话的消息
-  const currentMessages = computed(() => {
-    const sessionId = currentSessionId.value
-    if (!sessionId) return []
-
-    const currentPluginId = pluginStore.currentPlugin?.id
-    if (!currentPluginId) return []
-
-    const pluginMessages = messagesByPlugin.value[currentPluginId] || []
-    return pluginMessages.filter(msg => msg.sessionId === sessionId)
-  })
-
-  // 计算属性 - 当前插件的会话列表
-  const currentPluginSessions = computed(() => {
-    const currentPluginId = pluginStore.currentPlugin?.id
-    if (!currentPluginId) return []
-
-    return Object.values(chatSessions.value)
-      .filter(session => session.pluginId === currentPluginId)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-  })
 
   // 生成消息ID
   const generateMessageId = () => {
@@ -103,7 +82,7 @@ export const useMessageStore = defineStore('messages', () => {
 
   // 创建新会话
   const createNewSession = (pluginId?: string, title?: string) => {
-    const targetPluginId = pluginId || pluginStore.currentPlugin?.id
+    const targetPluginId = pluginId || pageManagerStore.currentPluginId
     if (!targetPluginId) {
       console.warn('无法创建会话：没有指定插件ID且当前没有活跃插件')
       return null
@@ -122,64 +101,23 @@ export const useMessageStore = defineStore('messages', () => {
     }
 
     chatSessions.value[sessionId] = session
-    currentSessionId.value = sessionId
     saveSessionsToStorage()
 
     return session
   }
 
-  // 切换到指定会话
-  const switchToSession = (sessionId: string) => {
-    if (chatSessions.value[sessionId]) {
-      currentSessionId.value = sessionId
-      return true
-    }
-    return false
-  }
-
-  // 删除会话
-  const deleteSession = (sessionId: string) => {
-    if (!chatSessions.value[sessionId]) return false
-
-    const session = chatSessions.value[sessionId]
-
-    // 删除会话相关的消息
-    const pluginMessages = messagesByPlugin.value[session.pluginId] || []
-    messagesByPlugin.value[session.pluginId] = pluginMessages.filter(
-      msg => msg.sessionId !== sessionId
-    )
-
-    // 删除会话
-    delete chatSessions.value[sessionId]
-
-    // 如果删除的是当前会话，切换到其他会话或创建新会话
-    if (currentSessionId.value === sessionId) {
-      const remainingSessions = currentPluginSessions.value
-      if (remainingSessions.length > 0) {
-        currentSessionId.value = remainingSessions[0].id
-      } else {
-        // 创建新会话
-        createNewSession(session.pluginId)
-      }
-    }
-
-    saveToStorage()
-    saveSessionsToStorage()
-    return true
-  }
-
   // 添加消息（支持块结构）
   const addMessage = (content: string, type: 'sent' | 'received', pluginId?: string, messageType?: 'normal' | 'success' | 'warning' | 'error' | 'info', blocks?: any[], instanceId?: string) => {
-    const targetPluginId = pluginId || pluginStore.currentPlugin?.id
+    const targetPluginId = pluginId || pageManagerStore.currentPluginId
     if (!targetPluginId) {
       console.warn('无法添加消息：没有指定插件ID且当前没有活跃插件')
       return
     }
 
     // 确保有当前会话
-    let sessionId = currentSessionId.value
+    let sessionId = pageManagerStore.currentSessionId
     if (!sessionId) {
-      const newSession = createNewSession(targetPluginId)
+      const newSession = pageManagerStore.createNewSession(targetPluginId)
       sessionId = newSession?.id || null
       if (!sessionId) {
         console.warn('无法创建会话')

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   scanPlugins,
@@ -7,7 +7,6 @@ import {
   disposePlugin,
   connectPlugin,
   disconnectPlugin,
-  getCurrentInstance,
   sendMessageToPlugin,
   type PluginMetadata
 } from '@/api'
@@ -24,29 +23,8 @@ export interface PluginInstanceState {
 export const usePluginStore = defineStore('plugins', () => {
   // 状态
   const plugins = ref<PluginMetadata[]>([])
-  const currentInstanceId = ref<string | null>(null)
   const instanceStates = ref<Record<string, PluginInstanceState>>({})
   const isLoading = ref(false)
-
-  // 计算属性
-  const currentInstance = computed(() => {
-    if (!currentInstanceId.value) return null
-    return instanceStates.value[currentInstanceId.value] || null
-  })
-
-  const currentPlugin = computed(() => {
-    const instance = currentInstance.value
-    if (!instance) return null
-    return plugins.value.find(p => p.id === instance.pluginId) || null
-  })
-
-  const isCurrentInstanceConnected = computed(() => {
-    return currentInstance.value?.isConnected || false
-  })
-
-  const isCurrentInstanceMounted = computed(() => {
-    return currentInstance.value?.isMounted || false
-  })
 
   // 获取实例状态
   const getInstanceState = (instanceId: string): PluginInstanceState | null => {
@@ -72,11 +50,6 @@ export const usePluginStore = defineStore('plugins', () => {
     try {
       isLoading.value = true
       plugins.value = await scanPlugins()
-
-      // 获取当前活跃实例
-      const currentInstance = await getCurrentInstance()
-      currentInstanceId.value = currentInstance || null
-
     } catch (error) {
       console.error('Failed to load plugins:', error)
       ElMessage.error('加载插件列表失败')
@@ -95,14 +68,6 @@ export const usePluginStore = defineStore('plugins', () => {
 
       // 从结果中提取实际的实例ID（如果后端返回了实例ID）
       const actualInstanceId = instanceId || tempInstanceId
-
-      // 更新状态
-      currentInstanceId.value = actualInstanceId
-      setInstanceState(actualInstanceId, pluginId, {
-        isMounted: true,
-        isConnected: false,
-        isLoading: false
-      })
 
       ElMessage.success(result)
       return actualInstanceId
@@ -130,10 +95,6 @@ export const usePluginStore = defineStore('plugins', () => {
 
       const result = await disposePlugin(instanceId)
 
-      // 更新状态
-      if (currentInstanceId.value === instanceId) {
-        currentInstanceId.value = null
-      }
       delete instanceStates.value[instanceId]
 
       ElMessage.success(result)
@@ -226,10 +187,6 @@ export const usePluginStore = defineStore('plugins', () => {
   // 向当前插件实例发送消息
   const sendMessage = async (message: string) => {
     try {
-      if (!currentInstanceId.value) {
-        throw new Error('没有活跃的插件实例')
-      }
-
       const response = await sendMessageToPlugin(message)
       return response
     } catch (error) {
@@ -242,15 +199,8 @@ export const usePluginStore = defineStore('plugins', () => {
   return {
     // 状态
     plugins,
-    currentInstanceId,
     instanceStates,
     isLoading,
-
-    // 计算属性
-    currentInstance,
-    currentPlugin,
-    isCurrentInstanceConnected,
-    isCurrentInstanceMounted,
 
     // 方法
     getInstanceState,

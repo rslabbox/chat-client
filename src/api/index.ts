@@ -25,5 +25,8 @@ export {
   listenPluginUiUpdate
 } from './plugin-ui'
 
+// 导出事件监听相关 API
+export { setupEventListeners, cleanupEventListeners } from './listener'
+
 // 导出常用的 Tauri API（重新导出以便统一管理）
 export { invoke } from '@tauri-apps/api/core'

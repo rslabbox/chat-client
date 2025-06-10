@@ -12,7 +12,7 @@
 
     <div class="config-content">
       <!-- 插件UI组件 -->
-      <PluginUI :instance-id="pluginStore.currentInstanceId || undefined" />
+      <PluginUI :instance-id="pageManagerStore.currentInstanceId || undefined" />
     </div>
 
     <div class="config-footer">
@@ -33,23 +33,25 @@ import { Link, Close } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { usePluginStore } from '@/stores/plugins'
 import PluginUI from './PluginUI.vue'
+import { usePageManagerStore } from '@/stores/pageManager'
 
 const pluginStore = usePluginStore()
+const pageManagerStore = usePageManagerStore()
 
 // 计算属性
-const isConnected = computed(() => pluginStore.isCurrentInstanceConnected)
+const isConnected = computed(() => pluginStore.getInstanceState(pageManagerStore.currentInstanceId ?? "")?.isConnected || false)
 
 // 处理连接
 const handleConnect = async () => {
-  if (pluginStore.currentInstanceId) {
-    await pluginStore.connectPluginInstance(pluginStore.currentInstanceId)
+  if (pageManagerStore.currentInstanceId) {
+    await pluginStore.connectPluginInstance(pageManagerStore.currentInstanceId)
   }
 }
 
 // 处理断开连接
 const handleDisconnect = async () => {
-  if (pluginStore.currentInstanceId) {
-    await pluginStore.disconnectPluginInstance(pluginStore.currentInstanceId)
+  if (pageManagerStore.currentInstanceId) {
+    await pluginStore.disconnectPluginInstance(pageManagerStore.currentInstanceId)
   }
 }
 </script>

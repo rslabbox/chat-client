@@ -3,40 +3,25 @@
     <div class="input-header">
       <h3>发送消息</h3>
     </div>
-    
+
     <div class="input-content">
-      <el-input
-        v-model="inputText"
-        type="textarea"
-        :rows="6"
-        placeholder="请输入消息内容..."
-        resize="none"
-        @keydown.ctrl.enter="handleSend"
-      />
+      <el-input v-model="inputText" type="textarea" :rows="6" placeholder="请输入消息内容..." resize="none"
+        @keydown.ctrl.enter="handleSend" />
     </div>
-    
+
     <div class="input-footer">
       <div class="input-tips">
         <el-text size="small" type="info">
           Ctrl + Enter 快速发送
         </el-text>
       </div>
-      
+
       <div class="button-group">
-        <el-button 
-          @click="handleClear"
-          :icon="Delete"
-          plain
-        >
+        <el-button @click="handleClear" :icon="Delete" plain>
           清空
         </el-button>
-        
-        <el-button 
-          type="primary" 
-          @click="handleSend"
-          :disabled="!inputText.trim()"
-          :icon="Promotion"
-        >
+
+        <el-button type="primary" @click="handleSend" :disabled="!inputText.trim()" :icon="Promotion">
           发送
         </el-button>
       </div>
@@ -48,9 +33,11 @@
 import { ref } from 'vue'
 import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useMessageStore } from '@/stores/messages'
+import { useHistoryStore } from '@/stores/history'
+import { usePageManagerStore } from '@/stores/pageManager'
 
-const messageStore = useMessageStore()
+const historyStore = useHistoryStore()
+const pageManagerStore = usePageManagerStore()
 const inputText = ref('')
 
 const handleSend = async () => {
@@ -61,7 +48,19 @@ const handleSend = async () => {
   }
 
   try {
-    await messageStore.sendMessage(content)
+    let currentSessionId = pageManagerStore.currentSessionId
+    if (!currentSessionId) {
+      if (!pageManagerStore.currentPluginId) {
+        throw new Error('当前没有活跃的插件')
+      }
+
+      currentSessionId = historyStore.createNewSession(pageManagerStore.currentPluginId)
+      if (pageManagerStore.currentPage) {
+        pageManagerStore.currentPage.sessionId = currentSessionId
+      }
+    }
+
+    historyStore.addMessageToSession(currentSessionId, content, historyStore.generateMessageId(), 'user')
     inputText.value = ''
   } catch (error) {
     // 错误已在 store 中处理，这里不需要额外处理

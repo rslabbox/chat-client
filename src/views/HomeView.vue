@@ -70,6 +70,7 @@ import ConfigPanel from '../components/ConfigPanel.vue'
 import MessageDisplay from '../components/MessageDisplay.vue'
 import MessageInput from '../components/MessageInput.vue'
 import HistoryPanel from '../components/HistoryPanel.vue'
+import { cleanupEventListeners, setupEventListeners } from '@/api'
 
 const settingsStore = useSettingsStore()
 
@@ -192,9 +193,12 @@ onMounted(() => {
   }
   
   window.addEventListener('resize', handleResize)
+
+  setupEventListeners();
   
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
+    cleanupEventListeners();
   })
 })
 </script>
