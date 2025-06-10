@@ -103,18 +103,16 @@ export const useHistoryStore = defineStore('history', () => {
   // 更新消息状态和内容（主要用于流式消息）
   const updateMessage = (
     messageId: string,
-    updates: Partial<Pick<BaseMessage, 'content' | 'status'>>
+    content: string,
+    status: 'completed' | 'active' | 'paused' | 'error' | 'cancelled'
   ): boolean => {
     for (const session of historyManager.value.sessions) {
       const messageIndex = session.messages.findIndex(m => m.id === messageId)
       if (messageIndex !== -1) {
         const message = session.messages[messageIndex]
-        if (updates.content !== undefined) {
-          message.content = updates.content
-        }
-        if (updates.status !== undefined) {
-          message.status = updates.status
-        }
+          message.content += content
+          message.status = status
+        
         session.updatedAt = new Date()
         saveToStorage()
         return true

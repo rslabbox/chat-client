@@ -86,6 +86,7 @@ const processedContent = computed(() => {
 <style scoped>
 .main-text-block {
   width: 100%;
+  color: black;
 }
 
 .mentions {

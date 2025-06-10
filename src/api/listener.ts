@@ -34,24 +34,37 @@ const setupEventListeners = async () => {
         const unlistenPluginStream = await listen('plugin-stream', (event) => {
             try {
                 const data = JSON.parse(event.payload as string)
+                const pluginId = data.plugin_id;
+                // const instantID = data.instance_id;
+                let currentSessionId = pageManagerStore.currentSessionId;
+                if (!currentSessionId) {
+                    currentSessionId = historyManager.createNewSession(pluginId)
+                    if (pageManagerStore.currentPage) {
+                        pageManagerStore.currentPage.sessionId = currentSessionId
+                    }
+                }
+                const streamID = data.data.stream_id;
+                console.log(data)
                 switch (data.type) {
                     case 'stream_start':
-
+                        historyManager.addMessageToSession(currentSessionId, '', streamID, 'plugin', 'streaming', 'active')
                         break
                     case 'stream_data':
-
+                        const isFinal = data.data.is_final;
+                        historyManager.updateMessage(streamID, data.data.chunk, isFinal ? 'completed' : 'active')
                         break
                     case 'stream_end':
-
-                        break
-                    case 'stream_pause':
-
-                        break
+                        const isSuccess = data.data.success;
+                        historyManager.updateMessage(streamID, '', isSuccess ? 'completed' : 'error')
+                        break;
+                    case 'stream_pause': 
+                        historyManager.updateMessage(streamID, '', 'paused') 
+                        break;
                     case 'stream_resume':
-
+                        historyManager.updateMessage(streamID, '', 'active')
                         break
                     case 'stream_cancel':
-
+                        historyManager.updateMessage(streamID, '[已取消]', 'cancelled')
                         break
                     default:
                         console.warn('Unknown stream message type:', data.type)
