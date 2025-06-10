@@ -597,7 +597,7 @@ impl PluginManager {
                     drop(instances); // 释放instances锁
 
                     // 发送UI更新事件到前端
-                    let _ = self.notify_plugin_ui_update(&plugin_id);
+                    let _ = self.notify_plugin_ui_update(&plugin_id, instance_id);
                 }
                 Ok(true)
             } else {
@@ -676,7 +676,7 @@ impl PluginManager {
                             drop(instances); // 释放instances锁
 
                             // 发送UI更新事件到前端
-                            let _ = self.notify_plugin_ui_update(&plugin_id);
+                            let _ = self.notify_plugin_ui_update(&plugin_id, instance_id);
                         }
                     }
                 }
@@ -691,10 +691,11 @@ impl PluginManager {
     }
 
     /// 通知插件UI更新
-    pub fn notify_plugin_ui_update(&self, plugin_id: &str) -> Result<(), String> {
+    pub fn notify_plugin_ui_update(&self, plugin_id: &str, instance_id: &str) -> Result<(), String> {
         // 向前端发送UI更新事件，使用 host_send_to_frontend 而不是直接调用 app_handle.emit
         let payload = serde_json::json!({
-            "plugin": plugin_id
+            "plugin": plugin_id,
+            "instance": instance_id
         });
         let payload_str = payload.to_string();
 

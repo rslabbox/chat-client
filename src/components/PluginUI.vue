@@ -255,7 +255,7 @@ onMounted(async () => {
     console.log('Plugin UI updated event:', event.payload)
     const payload = JSON.parse(event.payload as string)
     console.log('Plugin UI updated event:', payload)
-    if (payload.plugin === props.instanceId) {
+    if (payload.instance === props.instanceId) {
       loadPluginUI(props.instanceId!)
     }
   })
