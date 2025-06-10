@@ -36,6 +36,7 @@ impl ExamplePlugin {
                 author: Some("Augment".to_string()),
                 library_path: None,
                 config_path: "config.toml".to_string(),
+                instance_id: None,
             },
         }
     }
@@ -69,8 +70,6 @@ impl ExamplePlugin {
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
-                    // 使用 tokio 异步延迟模拟真实的后台处理
-                    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
                     let is_final = i == chunks.len() - 1;
                     if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final) {
@@ -82,6 +81,9 @@ impl ExamplePlugin {
                         );
                         return;
                     }
+
+                    // 使用 tokio 异步延迟模拟真实的后台处理
+                    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
                 }
 
                 // 结束流式传输
