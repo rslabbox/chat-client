@@ -154,14 +154,17 @@ jobs:
             target: 'universal-apple-darwin'
             lib_name: 'libexample.dylib'
             arch: 'universal'
+            file_extension: 'dylib'
           - platform: 'ubuntu-22.04'
             target: 'x86_64-unknown-linux-gnu'
             lib_name: 'libexample.so'
             arch: 'x86_64'
+            file_extension: 'so'
           - platform: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
             lib_name: 'example.dll'
             arch: 'x86_64'
+            file_extension: 'dll'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -187,20 +190,25 @@ jobs:
 
       - name: Build example plugin
         run: |
-          cd src-tauri/src/plugins/example
+          cd src-tauri
           if [ "${{ matrix.platform }}" = "macos-latest" ]; then
             # Build for both architectures and create universal binary
-            cargo build --release --target aarch64-apple-darwin
-            cargo build --release --target x86_64-apple-darwin
-            mkdir -p target/release
+            cargo build --release --target aarch64-apple-darwin -p example-plugin
+            cargo build --release --target x86_64-apple-darwin -p example-plugin
             lipo -create -output target/release/${{ matrix.lib_name }} \
               target/aarch64-apple-darwin/release/${{ matrix.lib_name }} \
               target/x86_64-apple-darwin/release/${{ matrix.lib_name }}
           else
-            cargo build --release --target ${{ matrix.target }}
-            mkdir -p target/release
-            cp target/${{ matrix.target }}/release/${{ matrix.lib_name }} target/release/
+            cargo build --release --target ${{ matrix.target }} -p example-plugin
+            # File is already in the correct location: src-tauri/target/${{ matrix.target }}/release/${{ matrix.lib_name }}
           fi
+
+      - name: List built files (debug)
+        run: |
+          echo "Contents of src-tauri/target/release:"
+          ls -la src-tauri/target/release/ || echo "release directory not found"
+          echo "Contents of src-tauri/target/${{ matrix.target }}/release:"
+          ls -la src-tauri/target/${{ matrix.target }}/release/ || echo "target-specific directory not found"
 
       - name: Upload plugin to release
         uses: actions/github-script@v7
@@ -211,8 +219,13 @@ jobs:
             const fs = require('fs');
             const path = require('path');
 
-            const assetPath = 'src-tauri/src/plugins/example/target/release/${{ matrix.lib_name }}';
-            const assetName = 'example-plugin-${{ matrix.arch }}${{ matrix.platform == 'windows-latest' && '.dll' || (matrix.platform == 'macos-latest' && '.dylib' || '.so') }}';
+            let assetPath;
+            if ('${{ matrix.platform }}' === 'macos-latest') {
+              assetPath = 'src-tauri/target/release/${{ matrix.lib_name }}';
+            } else {
+              assetPath = 'src-tauri/target/${{ matrix.target }}/release/${{ matrix.lib_name }}';
+            }
+            const assetName = 'example-plugin-${{ matrix.arch }}.${{ matrix.file_extension }}';
 
             const uploadUrl = `https://uploads.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/${{ needs.create-release.outputs.release_id }}/assets{?name,label}`;
 
