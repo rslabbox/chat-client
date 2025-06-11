@@ -1,5 +1,5 @@
 use crate::plugins::{
-    AvailablePluginInfo, PluginDownloadResult, PluginManager, PluginMetadata, PluginRepository,
+    AvailablePluginInfo, DownloadResponse, PluginDownloadResult, PluginManager, PluginMetadata, PluginRepository
 };
 use std::sync::{Arc, OnceLock};
 use tauri::AppHandle;
@@ -102,6 +102,12 @@ pub fn handle_plugin_ui_event(
 ) -> Result<bool, String> {
     let manager = get_plugin_manager()?;
     manager.handle_plugin_ui_event(&instance_id, &component_id, &value)
+}
+
+#[tauri::command]
+pub async fn download_github_repo() -> Result<DownloadResponse, String> {
+    let repository = PluginRepository::new();
+    Ok(repository.download_github_repo().await?)
 }
 
 /// 扫描可用插件列表（从插件仓库）

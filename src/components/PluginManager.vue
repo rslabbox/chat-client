@@ -1,5 +1,24 @@
 <template>
-  <el-dialog v-model="visible" title="插件管理" width="800px" :before-close="handleClose" destroy-on-close>
+  <el-dialog v-model="visible" width="800px" :before-close="handleClose" destroy-on-close>
+    <template #header>
+      <div class="dialog-header">
+        <span class="dialog-title">插件管理</span>
+        <div class="repo-status">
+          <el-icon v-if="refreshingRepo" class="is-loading">
+            <Loading />
+          </el-icon>
+          <el-icon v-else-if="repoConnected" class="repo-icon connected">
+            <Connection />
+          </el-icon>
+          <el-icon v-else class="repo-icon disconnected">
+            <WarningFilled />
+          </el-icon>
+          <span class="repo-text">
+            {{ refreshingRepo ? '正在更新仓库...' : (repoConnected ? '仓库已连接' : '仓库连接失败') }}
+          </span>
+        </div>
+      </div>
+    </template>
     <div class="plugin-manager">
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">
@@ -83,7 +102,9 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleRefresh" :loading="loading">刷新列表</el-button>
+        <el-button @click="handleRefresh" :loading="loading || refreshingRepo">
+          {{ (loading || refreshingRepo) ? '正在刷新...' : '刷新列表' }}
+        </el-button>
         <el-button @click="handleClose">关闭</el-button>
       </div>
     </template>
@@ -92,9 +113,10 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { Box } from '@element-plus/icons-vue'
+import { Box, Loading, Connection, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { scanAvailablePlugins, downloadPlugin } from '@/api'
+import { downloadGithubRepo } from '@/api/download'
 import type { AvailablePluginInfo } from '@/api/types'
 import { usePluginStore } from '@/stores/plugins'
 
@@ -113,6 +135,8 @@ const emit = defineEmits<{
 // 响应式数据
 const visible = ref(props.modelValue)
 const loading = ref(false)
+const refreshingRepo = ref(false)
+const repoConnected = ref(true) // 仓库连接状态
 const availablePlugins = ref<AvailablePluginInfo[]>([])
 const downloadingPlugins = ref(new Set<string>())
 
@@ -124,6 +148,8 @@ watch(() => props.modelValue, (newValue) => {
   visible.value = newValue
   if (newValue) {
     loadAvailablePlugins()
+    // 后台静默更新仓库
+    updateRepositoryInBackground()
   }
 })
 
@@ -136,6 +162,8 @@ watch(visible, (newValue) => {
 onMounted(() => {
   if (visible.value) {
     loadAvailablePlugins()
+    // 后台静默更新仓库
+    updateRepositoryInBackground()
   }
 })
 
@@ -149,6 +177,28 @@ const loadAvailablePlugins = async () => {
     ElMessage.error('加载插件列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 后台静默更新仓库
+const updateRepositoryInBackground = async () => {
+  try {
+    refreshingRepo.value = true
+    const repoResult = await downloadGithubRepo()
+
+    if (repoResult.success) {
+      repoConnected.value = true
+      // 静默更新成功后，重新加载插件列表
+      await loadAvailablePlugins()
+    } else {
+      repoConnected.value = false
+      console.warn('后台更新插件仓库失败:', repoResult.message)
+    }
+  } catch (error) {
+    repoConnected.value = false
+    console.error('后台更新插件仓库失败:', error)
+  } finally {
+    refreshingRepo.value = false
   }
 }
 
@@ -268,9 +318,40 @@ const handleRepository = (plugin: AvailablePluginInfo) => {
   }
 }
 
-// 刷新插件列表
-const handleRefresh = () => {
-  loadAvailablePlugins()
+// 刷新插件列表（用户主动刷新）
+const handleRefresh = async () => {
+  try {
+    refreshingRepo.value = true
+
+    // 先尝试下载GitHub仓库更新插件列表
+    try {
+      const repoResult = await downloadGithubRepo()
+      if (repoResult.success) {
+        repoConnected.value = true
+        ElMessage.success('插件仓库更新成功')
+      } else {
+        // 仓库下载失败，但不阻止后续操作
+        repoConnected.value = false
+        console.warn('插件仓库下载失败:', repoResult.message)
+        ElMessage.warning('插件仓库连接失败，将显示本地已有插件')
+      }
+    } catch (error) {
+      // 网络连接失败或其他错误
+      repoConnected.value = false
+      console.error('插件仓库连接失败:', error)
+      ElMessage.warning('插件仓库连接失败，将显示本地已有插件')
+    }
+
+    // 无论仓库下载是否成功，都要扫描本地插件
+    await loadAvailablePlugins()
+    await pluginStore.refreshPlugins()
+
+  } catch (error) {
+    console.error('刷新插件列表失败:', error)
+    ElMessage.error('刷新插件列表失败')
+  } finally {
+    refreshingRepo.value = false
+  }
 }
 
 // 关闭对话框
@@ -372,6 +453,38 @@ const handleClose = () => {
   height: 200px;
 }
 
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.repo-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.repo-icon.connected {
+  color: #67c23a;
+}
+
+.repo-icon.disconnected {
+  color: #f56c6c;
+}
+
+.repo-text {
+  font-size: 12px;
+}
 .dialog-footer {
   display: flex;
   justify-content: flex-end;

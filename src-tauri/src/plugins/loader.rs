@@ -1,8 +1,7 @@
 use plugin_interfaces::{log_info, log_warn, PluginMetadata};
-use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use crate::plugins::config::PluginConfig;
+use crate::plugins::{config::PluginConfig, directories::get_plugins_directories};
 
 #[derive(Debug)]
 pub struct PluginLoader;
@@ -18,7 +17,7 @@ impl PluginLoader {
         let mut plugins = Vec::new();
 
         // 获取要扫描的插件目录列表
-        let plugin_directories = self.get_plugins_directories();
+        let plugin_directories = get_plugins_directories();
 
         // 扫描每个插件目录
         for plugins_dir in plugin_directories {
@@ -60,23 +59,6 @@ impl PluginLoader {
         }
 
         plugins
-    }
-
-    /// 获取要扫描的插件目录列表
-    /// 同时返回 (pwd)/plugins 和 (pwd)/src-tauri/src/plugins 两个目录
-    fn get_plugins_directories(&self) -> Vec<PathBuf> {
-        let current_dir = std::env::current_dir().unwrap_or_default();
-        let mut directories = Vec::new();
-
-        // 添加 (pwd)/plugins 目录
-        let plugins_dir = current_dir.join("../").join("plugins");
-        directories.push(plugins_dir);
-
-        // 添加 (pwd)/src-tauri/src/plugins 目录
-        let src_plugins_dir = current_dir.join("src").join("plugins");
-        directories.push(src_plugins_dir);
-
-        directories
     }
 
     /// 从目录加载插件元数据

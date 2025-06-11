@@ -1,4 +1,5 @@
 pub mod config;
+pub mod directories;
 pub mod loader;
 pub mod manager;
 pub mod repository;
@@ -10,4 +11,4 @@ pub use plugin_interfaces::{
     CreatePluginFn, DestroyPluginFn, PluginHandler, PluginMetadata, CREATE_PLUGIN_SYMBOL,
     DESTROY_PLUGIN_SYMBOL,
 };
-pub use repository::{AvailablePluginInfo, PluginDownloadResult, PluginRepository};
+pub use repository::{AvailablePluginInfo, PluginDownloadResult, PluginRepository, DownloadResponse};
