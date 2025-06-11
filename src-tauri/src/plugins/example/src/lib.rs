@@ -30,13 +30,13 @@ impl ExamplePlugin {
     }
     fn theme_switcher(&mut self, ui: &mut Ui, _ctx: &Context, plugin_ctx: &PluginInstanceContext) {
         ui.horizontal(|ui| {
-            if ui.button("Dark").clicked() {
-                log_info!("Dark theme");
+            if ui.button("Short").clicked() {
+                log_info!("Send short message");
                 // 使用新的上下文传递API发送消息
-                self.send_message_to_frontend("Dark theme selected", plugin_ctx);
+                self.send_message_to_frontend("Test Message", plugin_ctx);
             }
-            if ui.button("Light").clicked() {
-                log_info!("Light theme");
+            if ui.button("Markdown").clicked() {
+                log_info!("Send Markdown");
                 // 使用新的上下文传递API发送复杂消息
                 self.send_message_to_frontend(
                     r"以下是一个代码块和一个数学公式的示例：
@@ -231,10 +231,10 @@ impl PluginHandler for ExamplePlugin {
 
         // 开关组件示例 - 在水平布局中使用
         ui.horizontal(|ui| {
-            ui.label("Dark Mode:");
+            ui.label("Toggle Mode:");
             let toggle_response = ui.toggle(&mut self.dark_mode);
             if toggle_response.changed() {
-                log_info!("Dark mode toggled: {}", self.dark_mode);
+                log_info!("Mode toggled: {}", self.dark_mode);
             }
         });
 
@@ -251,7 +251,7 @@ impl PluginHandler for ExamplePlugin {
             "Selected Option: {}",
             self.selected_option.as_ref().unwrap_or(&"None".to_string())
         ));
-        ui.label(&format!("Dark Mode: {}", self.dark_mode));
+        ui.label(&format!("Mode: {}", self.dark_mode));
     }
 
     // 挂载插件的时候调用

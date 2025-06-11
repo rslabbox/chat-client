@@ -1,51 +1,35 @@
 <template>
   <div class="tab-bar">
+    <!-- 左侧：面板切换、插件选择器和刷新按钮 -->
+    <div class="left-section">
+      <div class="panel-toggle">
+        <el-button type="default" @click="handleTogglePanel"
+          :icon="settingsStore.leftPanelVisible ? ArrowLeft : ArrowRight" size="small" circle
+          :title="settingsStore.leftPanelVisible ? '收起配置面板' : '展开配置面板'" />
+      </div>
+    </div>
     <!-- 固定标签页 -->
     <div v-if="pinnedTabs.length > 0" class="pinned-tabs">
-      <TabItem
-        v-for="tab in pinnedTabs"
-        :key="tab.id"
-        :tab="tab"
-        :is-pinned="true"
-        @click="handleTabClick(tab.id)"
-        @close="() => handleTabClose(tab.id)"
-        @context-menu="handleTabContextMenu(tab, $event)"
-      />
+      <TabItem v-for="tab in pinnedTabs" :key="tab.id" :tab="tab" :is-pinned="true" @click="handleTabClick(tab.id)"
+        @close="() => handleTabClose(tab.id)" @context-menu="handleTabContextMenu(tab, $event)" />
       <div class="tab-divider"></div>
     </div>
 
     <!-- 普通标签页 -->
     <div class="normal-tabs" ref="normalTabsContainer">
-      <TabItem
-        v-for="tab in activeTabs"
-        :key="tab.id"
-        :tab="tab"
-        :is-pinned="false"
-        @click="handleTabClick(tab.id)"
-        @close="() => handleTabClose(tab.id)"
-        @context-menu="handleTabContextMenu(tab, $event)"
-      />
+      <TabItem v-for="tab in activeTabs" :key="tab.id" :tab="tab" :is-pinned="false" @click="handleTabClick(tab.id)"
+        @close="() => handleTabClose(tab.id)" @context-menu="handleTabContextMenu(tab, $event)" />
     </div>
 
     <!-- 新建标签页按钮 -->
     <div class="tab-actions">
       <el-dropdown @command="handleNewTabCommand" trigger="click">
-        <el-button
-          type="text"
-          :icon="Plus"
-          size="small"
-          class="new-tab-btn"
-          :disabled="!canCreateNewTab"
-          title="新建标签页"
-        />
+        <el-button type="text" :icon="Plus" size="small" class="new-tab-btn" :disabled="!canCreateNewTab"
+          title="新建标签页" />
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item
-              v-for="plugin in availablePlugins"
-              :key="plugin.id"
-              :command="plugin.id"
-              :disabled="plugin.disabled"
-            >
+            <el-dropdown-item v-for="plugin in availablePlugins" :key="plugin.id" :command="plugin.id"
+              :disabled="plugin.disabled">
               <el-icon v-if="plugin.icon" class="plugin-icon">
                 <component :is="plugin.icon" />
               </el-icon>
@@ -57,13 +41,7 @@
 
       <!-- 标签页管理按钮 -->
       <el-dropdown @command="handleTabManageCommand" trigger="click">
-        <el-button
-          type="text"
-          :icon="More"
-          size="small"
-          class="manage-tab-btn"
-          title="标签页管理"
-        />
+        <el-button type="text" :icon="More" size="small" class="manage-tab-btn" title="标签页管理" />
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="close-all" :disabled="tabCount === 0">
@@ -82,33 +60,36 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <div class="right-section">
+        <el-button type="default" @click="handleSettings" :icon="Setting" size="small" circle title="系统设置" />
+      </div>
     </div>
 
     <!-- 标签页右键菜单 -->
-    <TabContextMenu
-      v-model:visible="contextMenuVisible"
-      :tab="contextMenuTab"
-      :position="contextMenuPosition"
-      @rename="handleTabRename"
-      @pin="handleTabPin"
-      @close="() => handleTabClose('')"
-      @close-others="handleCloseOthers"
-      @close-to-right="handleCloseToRight"
-    />
+    <TabContextMenu v-model:visible="contextMenuVisible" :tab="contextMenuTab" :position="contextMenuPosition"
+      @rename="handleTabRename" @pin="handleTabPin" @close="() => handleTabClose('')" @close-others="handleCloseOthers"
+      @close-to-right="handleCloseToRight" />
+
+    <SystemSettings v-model="showSettings" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, More } from '@element-plus/icons-vue'
+import { Plus, More, Setting, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTabManagerStore, type Tab } from '@/stores/tabManager'
 import { usePluginStore } from '@/stores/plugins'
 import TabItem from './TabItem.vue'
 import TabContextMenu from './TabContextMenu.vue'
+import SystemSettings from '../SystemSettings.vue'
+import { useSettingsStore } from '@/stores/settings'
 
 const tabManagerStore = useTabManagerStore()
 const pluginStore = usePluginStore()
+
+const settingsStore = useSettingsStore()
+const showSettings = ref(false)
 
 // 计算属性
 const pinnedTabs = computed(() => tabManagerStore.pinnedTabs)
@@ -168,14 +149,14 @@ const handleTabManageCommand = async (command: string) => {
         await tabManagerStore.closeAllTabs()
         ElMessage.success('所有标签页已关闭')
         break
-      
+
       case 'close-others':
         if (tabManagerStore.activeTab) {
           await tabManagerStore.closeOtherTabs(tabManagerStore.activeTab.id)
           ElMessage.success('其他标签页已关闭')
         }
         break
-      
+
       case 'close-unpinned':
         const unpinnedTabIds = activeTabs.value.map(t => t.id)
         for (const tabId of unpinnedTabIds) {
@@ -183,7 +164,7 @@ const handleTabManageCommand = async (command: string) => {
         }
         ElMessage.success('未固定标签页已关闭')
         break
-      
+
       case 'restore-session':
         // TODO: 实现会话恢复功能
         ElMessage.info('会话恢复功能开发中')
@@ -195,6 +176,15 @@ const handleTabManageCommand = async (command: string) => {
       ElMessage.error('操作失败')
     }
   }
+}
+
+// 处理系统设置
+const handleSettings = () => {
+  showSettings.value = true
+}
+
+const handleTogglePanel = () => {
+  settingsStore.toggleLeftPanel()
 }
 
 // 处理标签页右键菜单
@@ -311,11 +301,11 @@ const handleCloseToRight = async (tab: Tab) => {
   .tab-bar {
     padding: 0 4px;
   }
-  
+
   .normal-tabs {
     margin: 0 4px;
   }
-  
+
   .tab-actions {
     margin-left: 4px;
   }

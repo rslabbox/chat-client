@@ -1,7 +1,5 @@
 <template>
   <div class="app-container">
-    <!-- 顶部工具栏 -->
-    <PluginToolbar />
 
     <!-- 标签页管理器 -->
     <TabManager />
