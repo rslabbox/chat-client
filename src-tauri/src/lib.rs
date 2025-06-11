@@ -5,9 +5,9 @@ mod test_multi_instance;
 
 // 导入所有 API 命令
 use api::{
-    connect_plugin, disconnect_plugin, dispose_plugin, get_plugin_status,
-    get_plugin_ui, greet, handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin,
-    scan_plugins, send_message_to_plugin, test_multi_instance,
+    connect_plugin, disconnect_plugin, dispose_plugin, get_plugin_status, get_plugin_ui, greet,
+    handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin, scan_plugins,
+    send_message_to_plugin, test_multi_instance,
 };
 
 use plugin_interfaces::log_info;

@@ -451,10 +451,6 @@ impl PluginManager {
     /// 获取插件实例UI定义
     pub fn get_plugin_ui(&self, instance_id: &str) -> Result<String, String> {
         let mut instances = self.instances.lock().unwrap();
-        log_info!("获取插件UI定义: {} {}", instance_id, instances.len());
-        for (id, instance) in instances.iter() {
-            log_info!("插件实例: {} ({})", instance.metadata.name, id);
-        }
 
         if let Some(instance) = instances.get_mut(instance_id) {
             if instance.is_mounted {
@@ -651,8 +647,8 @@ impl PluginManager {
             }
 
             // 调用插件的 handle_message 方法
-            let message_cstr = std::ffi::CString::new(message)
-                .map_err(|_| "消息转换失败".to_string())?;
+            let message_cstr =
+                std::ffi::CString::new(message).map_err(|_| "消息转换失败".to_string())?;
 
             let mut response_ptr: *mut std::ffi::c_char = std::ptr::null_mut();
             let result = unsafe {
@@ -673,7 +669,8 @@ impl PluginManager {
 
             let response = unsafe {
                 let c_str = std::ffi::CStr::from_ptr(response_ptr);
-                let response_str = c_str.to_str()
+                let response_str = c_str
+                    .to_str()
                     .map_err(|_| "响应转换失败".to_string())?
                     .to_string();
 
@@ -687,7 +684,11 @@ impl PluginManager {
     }
 
     /// 通知插件UI更新
-    pub fn notify_plugin_ui_update(&self, plugin_id: &str, instance_id: &str) -> Result<(), String> {
+    pub fn notify_plugin_ui_update(
+        &self,
+        plugin_id: &str,
+        instance_id: &str,
+    ) -> Result<(), String> {
         // 向前端发送UI更新事件，使用 host_send_to_frontend 而不是直接调用 app_handle.emit
         let payload = serde_json::json!({
             "plugin": plugin_id,

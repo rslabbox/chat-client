@@ -101,6 +101,7 @@ import { ref, watch, onMounted, onUnmounted, reactive } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { getPluginUi, handlePluginUiEvent, refreshPluginUi } from '@/api/plugin-ui'
 import type { Component } from '@/api/types'
+import { usePluginStore } from '@/stores/plugins'
 
 // Props
 interface Props {
@@ -117,6 +118,9 @@ const textFieldValues = reactive<Record<string, string>>({})
 const selectValues = reactive<Record<string, string | number>>({})
 const toggleValues = reactive<Record<string, boolean>>({})
 
+// 插件状态管理
+const pluginStore = usePluginStore()
+
 // 事件监听器
 let unlistenPluginUiUpdate: UnlistenFn | null = null
 let unlistenPluginUiRefresh: UnlistenFn | null = null
@@ -132,6 +136,29 @@ const loadPluginUI = async (instanceId: string) => {
   error.value = ''
 
   try {
+    // 首先检查插件实例状态
+    const instanceState = pluginStore.getInstanceState(instanceId)
+    if (instanceState) {
+      // 如果实例状态存在，同步最新状态
+      const pluginId = instanceState.pluginId
+      const status = await pluginStore.syncInstanceState(instanceId, pluginId)
+
+      if (!status) {
+        error.value = '无法获取插件实例状态，请检查插件是否正常运行'
+        return
+      }
+
+      if (!status.isMounted) {
+        error.value = '插件实例未挂载，请先挂载插件实例'
+        return
+      }
+
+      // 可选：检查连接状态
+      if (!status.isConnected) {
+        console.warn('插件实例未连接，某些功能可能不可用')
+      }
+    }
+
     const ui = await getPluginUi(instanceId)
     uiComponents.value = ui
 

@@ -8,6 +8,7 @@ import {
   connectPlugin,
   disconnectPlugin,
   sendMessageToPlugin,
+  getPluginStatus,
   type PluginMetadata
 } from '@/api'
 
@@ -38,10 +39,42 @@ export const usePluginStore = defineStore('plugins', () => {
       ...existingState,
       instanceId,
       pluginId,
-      isMounted: false,
-      isConnected: false,
       isLoading: false,
       ...state
+    }
+  }
+
+  // 从后端同步插件实例状态
+  const syncInstanceState = async (instanceId: string, pluginId: string) => {
+    try {
+      const status = await getPluginStatus(instanceId)
+      if (status) {
+        const [isMounted, isConnected] = status
+        setInstanceState(instanceId, pluginId, {
+          isMounted,
+          isConnected,
+          isLoading: false,
+          error: undefined
+        })
+        return { isMounted, isConnected }
+      } else {
+        // 插件实例不存在
+        setInstanceState(instanceId, pluginId, {
+          isMounted: false,
+          isConnected: false,
+          isLoading: false,
+          error: '插件实例不存在'
+        })
+        return { isMounted: false, isConnected: false }
+      }
+    } catch (error) {
+      const errorMsg = error as string
+      setInstanceState(instanceId, pluginId, {
+        isLoading: false,
+        error: errorMsg
+      })
+      console.error('同步插件状态失败:', error)
+      return null
     }
   }
 
@@ -69,6 +102,9 @@ export const usePluginStore = defineStore('plugins', () => {
 
       // 从结果中提取实际的实例ID（如果后端返回了实例ID）
       const actualInstanceId = instanceId || tempInstanceId
+
+      // 挂载成功后同步状态
+      await syncInstanceState(actualInstanceId, pluginId)
 
       ElMessage.success(result)
       return actualInstanceId
@@ -126,10 +162,8 @@ export const usePluginStore = defineStore('plugins', () => {
 
       const result = await connectPlugin(instanceId)
 
-      setInstanceState(instanceId, instance.pluginId, {
-        isConnected: true,
-        isLoading: false
-      })
+      // 连接成功后同步状态
+      await syncInstanceState(instanceId, instance.pluginId)
 
       ElMessage.success(result)
       return true
@@ -159,10 +193,8 @@ export const usePluginStore = defineStore('plugins', () => {
 
       const result = await disconnectPlugin(instanceId)
 
-      setInstanceState(instanceId, instance.pluginId, {
-        isConnected: false,
-        isLoading: false
-      })
+      // 断开连接成功后同步状态
+      await syncInstanceState(instanceId, instance.pluginId)
 
       ElMessage.success(result)
       return true
@@ -183,14 +215,15 @@ export const usePluginStore = defineStore('plugins', () => {
   // 切换到已存在的插件实例（不重新挂载）
   const switchToExistingInstance = async (pluginId: string, instanceId: string) => {
     try {
-      // 检查实例是否存在
-      const instance = getInstanceState(instanceId)
-      if (!instance) {
-        throw new Error(`插件实例 ${instanceId} 不存在`)
+      // 先同步状态以获取最新的插件状态
+      const status = await syncInstanceState(instanceId, pluginId)
+
+      if (!status) {
+        throw new Error(`无法获取插件实例 ${instanceId} 的状态`)
       }
 
       // 如果实例存在但未挂载，则挂载它
-      if (!instance.isMounted) {
+      if (!status.isMounted) {
         return await mountPluginById(pluginId, instanceId)
       }
 
@@ -252,6 +285,8 @@ export const usePluginStore = defineStore('plugins', () => {
 
     // 方法
     getInstanceState,
+    setInstanceState,
+    syncInstanceState,
     loadPlugins,
     mountPluginById,
     disposePluginInstance,

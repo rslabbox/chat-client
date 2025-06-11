@@ -1,8 +1,8 @@
 use plugin_interfaces::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
-    PluginHandler, PluginInterface, PluginInstanceContext, PluginMessage, PluginUiOption,
-    PluginStreamMessage,
+    PluginHandler, PluginInstanceContext, PluginInterface, PluginMessage, PluginStreamMessage,
+    PluginUiOption,
 };
 use std::sync::Arc;
 use tokio::{runtime::Runtime, sync::Mutex};
@@ -38,7 +38,8 @@ impl ExamplePlugin {
             if ui.button("Light").clicked() {
                 log_info!("Light theme");
                 // 使用新的上下文传递API发送复杂消息
-                self.send_message_to_frontend(r"以下是一个代码块和一个数学公式的示例：
+                self.send_message_to_frontend(
+                    r"以下是一个代码块和一个数学公式的示例：
 
 ### 代码块 (Python)
 ```python
@@ -65,12 +66,17 @@ $$ e^{i\pi} + 1 = 0 $$
 $$ e^{i\theta} = \cos\theta + i\sin\theta $$
 
 当 $\theta = \pi$ 时，得到：
-$$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
+$$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
+                    plugin_ctx,
+                );
             }
         });
     }
 
-    async fn demo_streaming_message_background_async(self: Arc<Self>, plugin_ctx: PluginInstanceContext) {
+    async fn demo_streaming_message_background_async(
+        self: Arc<Self>,
+        plugin_ctx: PluginInstanceContext,
+    ) {
         // 重新实现流式消息功能，支持上下文传递
         log_info!("Starting background stream demo with context support");
 
@@ -83,18 +89,20 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
                     "后台第一部分数据...",
                     "后台第二部分数据...",
                     "后台第三部分数据...",
-                    "后台第四部分数据，请稍等..."
+                    "后台第四部分数据，请稍等...",
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
                     let is_final = i == chunks.len() - 1;
-                    if let Err(e) = self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx) {
+                    if let Err(e) =
+                        self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx)
+                    {
                         log_warn!("Failed to send background stream chunk: {}", e);
                         let _ = self.send_message_stream_end(
                             &stream_id,
                             false,
                             Some(&format!("Error: {}", e)),
-                            &plugin_ctx
+                            &plugin_ctx,
                         );
                         return;
                     }
@@ -114,7 +122,6 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
                 log_warn!("Failed to start background stream: {}", e);
             }
         }
-        
     }
 
     fn demo_streaming_message_background(self: Arc<Self>, plugin_ctx: PluginInstanceContext) {
@@ -122,7 +129,9 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
         if let Some(runtime) = self.runtime.clone() {
             let self_clone = self.clone();
             runtime.spawn(async move {
-                self_clone.demo_streaming_message_background_async(plugin_ctx).await;
+                self_clone
+                    .demo_streaming_message_background_async(plugin_ctx)
+                    .await;
             });
         } else {
             log_warn!("Tokio runtime not initialized, falling back to thread");
@@ -157,10 +166,10 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$", plugin_ctx);
         };
 
         // 现在可以正确地发送消息到前端
-        self.send_message_to_frontend(&format!(
-            "Age updated from {} to {} (+{})",
-            old_age, new_age, 5
-        ), &instance_context);
+        self.send_message_to_frontend(
+            &format!("Age updated from {} to {} (+{})", old_age, new_age, 5),
+            &instance_context,
+        );
 
         // 刷新UI
         self.refresh_ui(&instance_context);
@@ -246,7 +255,10 @@ impl PluginHandler for ExamplePlugin {
     }
 
     // 挂载插件的时候调用
-    fn on_mount(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_mount(
+        &mut self,
+        plugin_ctx: &PluginInstanceContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let metadata = plugin_ctx.get_metadata();
         log_info!("[{}] Plugin mount successfully", metadata.name);
         log_info!(
@@ -271,35 +283,87 @@ impl PluginHandler for ExamplePlugin {
         Ok(())
     }
 
-    fn on_dispose(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_dispose(
+        &mut self,
+        plugin_ctx: &PluginInstanceContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = plugin_ctx.get_metadata();
         log_info!(
-            "[{}] Plugin disposed successfully",
-            plugin_ctx.get_metadata().name
+            "Plugin disposed successfully. Metadata: id={}, name={}, version={}, instance_id={}",
+            metadata.id,
+            metadata.name,
+            metadata.version,
+            metadata.instance_id.clone().unwrap_or("None".to_string())
+        );
+        // 关闭 tokio 异步运行时
+        if let Some(runtime) = self.runtime.clone() {
+            // Use Arc::try_unwrap to get ownership if this is the last reference
+            match Arc::try_unwrap(runtime) {
+                Ok(runtime) => {
+                    runtime.shutdown_timeout(std::time::Duration::from_millis(10));
+                    log_info!("Tokio runtime shutdown successfully");
+                }
+                Err(_) => {
+                    log_warn!("Cannot shutdown runtime: other references still exist");
+                }
+            }
+        } else {
+            log_warn!("Tokio runtime not initialized, cannot shutdown");
+        }
+        Ok(())
+    }
+
+    fn on_connect(
+        &mut self,
+        plugin_ctx: &PluginInstanceContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = plugin_ctx.get_metadata();
+        log_info!(
+            "Plugin connect successfully. Metadata: id={}, name={}, version={}, instance_id={}",
+            metadata.id,
+            metadata.name,
+            metadata.version,
+            metadata.instance_id.clone().unwrap_or("None".to_string())
         );
         Ok(())
     }
 
-    fn on_connect(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
-        log_info!("[{}] Connected", plugin_ctx.get_metadata().name);
-        Ok(())
-    }
-
-    fn on_disconnect(&mut self, plugin_ctx: &PluginInstanceContext) -> Result<(), Box<dyn std::error::Error>> {
-        log_warn!("[{}] Disconnected", plugin_ctx.get_metadata().name);
-        Ok(())
-    }
-
-    fn handle_message(&mut self, message: &str, plugin_ctx: &PluginInstanceContext) -> Result<String, Box<dyn std::error::Error>> {
+    fn on_disconnect(
+        &mut self,
+        plugin_ctx: &PluginInstanceContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = plugin_ctx.get_metadata();
         log_info!(
-            "[{}] Received message: {}",
-            plugin_ctx.get_metadata().name,
-            message
+            "Plugin disconnect successfully. Metadata: id={}, name={}, version={}, instance_id={}",
+            metadata.id,
+            metadata.name,
+            metadata.version,
+            metadata.instance_id.clone().unwrap_or("None".to_string())
+        );
+        Ok(())
+    }
+
+    fn handle_message(
+        &mut self,
+        message: &str,
+        plugin_ctx: &PluginInstanceContext,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let metadata = plugin_ctx.get_metadata();
+        log_info!(
+            "Plugin Recive Message. Metadata: id={}, name={}, version={}, instance_id={}",
+            metadata.id,
+            metadata.name,
+            metadata.version,
+            metadata.instance_id.clone().unwrap_or("None".to_string())
         );
 
         let response = format!("Echo from {}: {}", plugin_ctx.get_metadata().name, message);
 
         // 向前端发送响应
-        // send_message_to_frontend!("收到消息: {}", message);
+        self.send_message_to_frontend(
+            &format!("[{}]收到消息：{}", metadata.name, message),
+            plugin_ctx,
+        );
         Ok(response)
     }
 }

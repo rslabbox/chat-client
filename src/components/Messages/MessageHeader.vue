@@ -108,7 +108,7 @@ const avatarBgColor = computed(() => {
 // 获取状态文本
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    'sending': '发送中...',
+    'active': '发送中...',
     'sent': '已发送',
     'received': '已接收',
     'error': '发送失败',
