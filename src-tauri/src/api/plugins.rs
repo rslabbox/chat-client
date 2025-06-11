@@ -1,4 +1,6 @@
-use crate::plugins::{PluginManager, PluginMetadata, PluginRepository, AvailablePluginInfo, PluginDownloadResult};
+use crate::plugins::{
+    AvailablePluginInfo, PluginDownloadResult, PluginManager, PluginMetadata, PluginRepository,
+};
 use std::sync::{Arc, OnceLock};
 use tauri::AppHandle;
 

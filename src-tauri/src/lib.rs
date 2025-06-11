@@ -4,9 +4,9 @@ pub mod plugins;
 
 // 导入所有 API 命令
 use api::{
-    connect_plugin, disconnect_plugin, dispose_plugin, get_plugin_status, get_plugin_ui, greet,
-    handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin, scan_plugins,
-    send_message_to_plugin, download_github_repo, scan_available_plugins, download_plugin,
+    connect_plugin, disconnect_plugin, dispose_plugin, download_github_repo, download_plugin,
+    get_plugin_status, get_plugin_ui, greet, handle_plugin_ui_event, handle_plugin_ui_update,
+    mount_plugin, scan_available_plugins, scan_plugins, send_message_to_plugin,
 };
 
 use plugin_interfaces::log_info;
