@@ -297,7 +297,7 @@ impl PluginRepository {
             .map_err(|e| format!("保存动态链接库失败: {}", e))?;
 
         // 复制config.toml文件
-        let source_config_path = get_root_plugin_installed_directory()
+        let source_config_path = get_plugin_repository_directory()
             .join(&plugin_info.id)
             .join("config.toml");
         let target_config_path = plugin_dir.join("config.toml");
