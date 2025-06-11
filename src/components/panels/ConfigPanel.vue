@@ -2,8 +2,22 @@
   <div class="config-content">
     <div class="config-header">
       <div class="connection-status">
-        <el-tag :type="isConnected ? 'success' : 'danger'" size="small">
-          {{ isConnected ? '已连接' : '未连接' }}
+        <div v-if="isConnected && currentPlugin" class="plugin-info">
+          <span class="plugin-name">{{ currentPlugin.name }}</span>
+          <div class="plugin-meta">
+            <span v-if="currentPlugin.version" class="plugin-version">v{{ currentPlugin.version }}</span>
+            <el-tag type="success" size="small">已连接</el-tag>
+          </div>
+        </div>
+        <div v-else-if="currentPlugin" class="plugin-info">
+          <span class="plugin-name">{{ currentPlugin.name }}</span>
+          <div class="plugin-meta">
+            <span v-if="currentPlugin.version" class="plugin-version">v{{ currentPlugin.version }}</span>
+            <el-tag type="danger" size="small">未连接</el-tag>
+          </div>
+        </div>
+        <el-tag v-else type="warning" size="small">
+          无插件
         </el-tag>
       </div>
     </div>
@@ -39,6 +53,13 @@ const pluginStore = usePluginStore()
 // 插件连接状态
 const isConnected = computed(() => pluginStore.getInstanceState(pageManagerStore.currentInstanceId ?? "")?.isConnected || false)
 
+// 当前插件信息
+const currentPlugin = computed(() => {
+  const currentPluginId = pageManagerStore.currentPluginId
+  if (!currentPluginId) return null
+  return pluginStore.plugins.find(plugin => plugin.id === currentPluginId) || null
+})
+
 // 插件连接相关方法
 const handleConnect = async () => {
   if (pageManagerStore.currentInstanceId) {
@@ -73,6 +94,42 @@ const handleDisconnect = async () => {
   grid-row: 1;
 }
 
+.connection-status {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.plugin-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.plugin-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.plugin-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.plugin-version {
+  font-size: 12px;
+  color: #909399;
+  background-color: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
 .config-main {
   overflow-y: auto;
   overflow-x: hidden;

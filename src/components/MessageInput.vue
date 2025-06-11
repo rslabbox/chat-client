@@ -5,23 +5,24 @@
     </div>
 
     <div class="input-content">
-      <el-input v-model="inputText" type="textarea" :rows="6" placeholder="请输入消息内容..." resize="none"
+      <el-input v-model="inputText" type="textarea" :rows="6"
+        :placeholder="isPluginConnected ? '请输入消息内容...' : '插件未连接，无法发送消息'" :disabled="!isPluginConnected" resize="none"
         @keydown.ctrl.enter="handleSend" />
     </div>
 
     <div class="input-footer">
       <div class="input-tips">
-        <el-text size="small" type="info">
-          Ctrl + Enter 快速发送
+        <el-text size="small" :type="isPluginConnected ? 'info' : 'warning'">
+          {{ isPluginConnected ? 'Ctrl + Enter 快速发送' : '请先连接插件' }}
         </el-text>
       </div>
 
       <div class="button-group">
-        <el-button @click="handleClear" :icon="Delete" plain>
+        <el-button @click="handleClear" :icon="Delete" :disabled="!isPluginConnected" plain>
           清空
         </el-button>
 
-        <el-button type="primary" @click="handleSend" :disabled="!inputText.trim()" :icon="Promotion">
+        <el-button type="primary" @click="handleSend" :disabled="!canSend" :icon="Promotion">
           发送
         </el-button>
       </div>
@@ -30,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
@@ -42,10 +43,28 @@ const pageManagerStore = usePageManagerStore()
 const pluginStore = usePluginStore()
 const inputText = ref('')
 
+// 插件连接状态
+const isPluginConnected = computed(() => {
+  const instanceId = pageManagerStore.currentInstanceId
+  if (!instanceId) return false
+  return pluginStore.getInstanceState(instanceId)?.isConnected || false
+})
+
+// 发送按钮是否可用
+const canSend = computed(() => {
+  return inputText.value.trim() && isPluginConnected.value
+})
+
 const handleSend = async () => {
   const content = inputText.value.trim()
   if (!content) {
     ElMessage.warning('请输入消息内容')
+    return
+  }
+
+  // 检查插件连接状态
+  if (!isPluginConnected.value) {
+    ElMessage.error('插件未连接，无法发送消息')
     return
   }
 

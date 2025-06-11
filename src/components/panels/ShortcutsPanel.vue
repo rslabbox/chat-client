@@ -1,8 +1,9 @@
 <template>
   <div class="shortcuts-content">
     <div class="shortcuts-list">
-      <div v-for="shortcut in shortcuts" :key="shortcut.id" class="shortcut-item"
-        @click="handleShortcutClick(shortcut.content)">
+      <div v-for="shortcut in shortcuts" :key="shortcut.id"
+        :class="['shortcut-item', { 'disabled': !isPluginConnected }]"
+        @click="isPluginConnected ? handleShortcutClick(shortcut.content) : null">
         <div class="shortcut-content">
           <div v-if="shortcut.title" class="shortcut-title">{{ shortcut.title }}</div>
           <div class="shortcut-text" :class="{ 'no-title': !shortcut.title }">{{ shortcut.content }}</div>
@@ -45,14 +46,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { Delete, FolderAdd } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
 import { usePageManagerStore } from '@/stores/pageManager'
+import { usePluginStore } from '@/stores/plugins'
 
 const historyStore = useHistoryStore()
 const pageManagerStore = usePageManagerStore()
+const pluginStore = usePluginStore()
+
+// 插件连接状态
+const isPluginConnected = computed(() => {
+  const instanceId = pageManagerStore.currentInstanceId
+  if (!instanceId) return false
+  return pluginStore.getInstanceState(instanceId)?.isConnected || false
+})
 
 // 快捷短语接口
 interface Shortcut {
@@ -149,6 +159,12 @@ const handleDeleteShortcut = async (shortcutId: string) => {
 }
 
 const handleShortcutClick = async (content: string) => {
+  // 检查插件连接状态
+  if (!isPluginConnected.value) {
+    ElMessage.error('插件未连接，无法发送快捷短语')
+    return
+  }
+
   try {
     // 直接发送快捷短语内容
     const currentSessionId = pageManagerStore.currentSessionId
@@ -206,11 +222,22 @@ onMounted(() => {
   background-color: #ffffff;
 }
 
-.shortcut-item:hover {
+.shortcut-item:hover:not(.disabled) {
   background-color: #f5f7fa;
   border-color: #c0c4cc;
 }
 
+.shortcut-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f5f7fa;
+  border-color: #e4e7ed;
+}
+
+.shortcut-item.disabled .shortcut-title,
+.shortcut-item.disabled .shortcut-text {
+  color: #c0c4cc;
+}
 .shortcut-content {
   flex: 1;
   min-width: 0;
