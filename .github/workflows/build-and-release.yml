@@ -142,11 +142,97 @@ jobs:
           args: ${{ matrix.args }}
           includeUpdaterJson: true
 
+  build-plugins:
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            target: 'universal-apple-darwin'
+            lib_name: 'libexample.dylib'
+            arch: 'universal'
+          - platform: 'ubuntu-22.04'
+            target: 'x86_64-unknown-linux-gnu'
+            lib_name: 'libexample.so'
+            arch: 'x86_64'
+          - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+            lib_name: 'example.dll'
+            arch: 'x86_64'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: ${{ matrix.platform }}-${{ matrix.target }}-plugins
+
+      - name: Build example plugin
+        run: |
+          cd src-tauri/src/plugins/example
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            # Build for both architectures and create universal binary
+            cargo build --release --target aarch64-apple-darwin
+            cargo build --release --target x86_64-apple-darwin
+            mkdir -p target/release
+            lipo -create -output target/release/${{ matrix.lib_name }} \
+              target/aarch64-apple-darwin/release/${{ matrix.lib_name }} \
+              target/x86_64-apple-darwin/release/${{ matrix.lib_name }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+            mkdir -p target/release
+            cp target/${{ matrix.target }}/release/${{ matrix.lib_name }} target/release/
+          fi
+
+      - name: Upload plugin to release
+        uses: actions/github-script@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const assetPath = 'src-tauri/src/plugins/example/target/release/${{ matrix.lib_name }}';
+            const assetName = 'example-plugin-${{ matrix.arch }}${{ matrix.platform == 'windows-latest' && '.dll' || (matrix.platform == 'macos-latest' && '.dylib' || '.so') }}';
+
+            const uploadUrl = `https://uploads.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/${{ needs.create-release.outputs.release_id }}/assets{?name,label}`;
+
+            const stats = fs.statSync(assetPath);
+            const fileSizeInBytes = stats.size;
+            const fileContent = fs.readFileSync(assetPath);
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              name: assetName,
+              data: fileContent
+            });
+
   publish-release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [create-release, build-tauri]
+    needs: [create-release, build-tauri, build-plugins]
 
     steps:
       - name: Publish release
