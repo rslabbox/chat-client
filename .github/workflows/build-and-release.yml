@@ -189,6 +189,7 @@ jobs:
           key: ${{ matrix.platform }}-${{ matrix.target }}-plugins
 
       - name: Build example plugin
+        shell: bash
         run: |
           cd src-tauri
           if [ "${{ matrix.platform }}" = "macos-latest" ]; then
@@ -204,6 +205,7 @@ jobs:
           fi
 
       - name: List built files (debug)
+        shell: bash
         run: |
           echo "Contents of src-tauri/target/release:"
           ls -la src-tauri/target/release/ || echo "release directory not found"
