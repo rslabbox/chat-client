@@ -243,9 +243,81 @@ export const useTabManagerStore = defineStore('tabManager', () => {
     }
   }
 
+  // 重新挂载标签页对应的插件实例
+  const remountPluginsFromTabs = async (): Promise<void> => {
+    if (tabs.value.length === 0) {
+      return
+    }
+
+    console.log(`开始重新挂载 ${tabs.value.length} 个标签页的插件实例`)
+
+    // 收集需要挂载的插件实例（去重）
+    const instancesMap = new Map<string, { pluginId: string; instanceId: string; tabIds: string[] }>()
+
+    tabs.value.forEach(tab => {
+      const key = `${tab.pluginId}_${tab.instanceId}`
+      if (instancesMap.has(key)) {
+        instancesMap.get(key)!.tabIds.push(tab.id)
+      } else {
+        instancesMap.set(key, {
+          pluginId: tab.pluginId,
+          instanceId: tab.instanceId,
+          tabIds: [tab.id]
+        })
+      }
+    })
+
+    // 并行挂载所有插件实例
+    const mountPromises = Array.from(instancesMap.values()).map(async ({ pluginId, instanceId, tabIds }) => {
+      try {
+        console.log(`重新挂载插件实例: ${pluginId} (${instanceId}), 关联标签页: ${tabIds.join(', ')}`)
+        await pluginStore.switchToExistingInstance(pluginId, instanceId)
+        console.log(`插件实例挂载成功: ${pluginId} (${instanceId})`)
+        return { success: true, pluginId, instanceId, tabIds }
+      } catch (error) {
+        console.error(`插件实例挂载失败: ${pluginId} (${instanceId}):`, error)
+        return { success: false, pluginId, instanceId, tabIds, error }
+      }
+    })
+
+    const results = await Promise.allSettled(mountPromises)
+
+    // 统计挂载结果
+    let successCount = 0
+    let failedCount = 0
+    const failedTabs: string[] = []
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        const mountResult = result.value
+        if (mountResult.success) {
+          successCount++
+        } else {
+          failedCount++
+          failedTabs.push(...mountResult.tabIds)
+        }
+      } else {
+        failedCount++
+        const instanceInfo = Array.from(instancesMap.values())[index]
+        failedTabs.push(...instanceInfo.tabIds)
+      }
+    })
+
+    console.log(`插件实例挂载完成: 成功 ${successCount} 个, 失败 ${failedCount} 个`)
+
+    // 如果有失败的标签页，可以选择移除它们或标记为错误状态
+    if (failedTabs.length > 0) {
+      console.warn(`以下标签页的插件实例挂载失败，可能需要手动处理: ${failedTabs.join(', ')}`)
+      // 这里可以选择移除失败的标签页或者保留它们但标记为错误状态
+      // 暂时保留，让用户手动处理
+    }
+  }
+
   // 从本地存储加载
-  const loadFromStorage = () => {
+  const loadFromStorage = async (): Promise<void> => {
     try {
+      isLoading.value = true
+
       const data = localStorage.getItem(TAB_STORAGE_KEY)
       if (data) {
         const parsed = JSON.parse(data)
@@ -258,9 +330,41 @@ export const useTabManagerStore = defineStore('tabManager', () => {
           tab.createdAt = new Date(tab.createdAt)
           tab.updatedAt = new Date(tab.updatedAt)
         })
+
+        // 重新挂载所有标签页对应的插件实例
+        if (tabs.value.length > 0) {
+          await remountPluginsFromTabs()
+
+          // 如果有当前激活的标签页，需要同步其UI状态
+          if (activeTabId.value) {
+            const activeTab = tabs.value.find(tab => tab.id === activeTabId.value)
+            if (activeTab) {
+              console.log(`同步激活标签页的UI状态: ${activeTab.title} (${activeTab.instanceId})`)
+              try {
+                // 通过pageManager切换到当前激活标签页，这会触发UI同步
+                const pageState = {
+                  pluginId: activeTab.pluginId,
+                  instanceId: activeTab.instanceId,
+                  sessionId: activeTab.sessionId,
+                  title: activeTab.title,
+                  createdAt: activeTab.createdAt,
+                  updatedAt: activeTab.updatedAt
+                }
+                await pageManagerStore.switchToPage(pageState)
+                console.log(`激活标签页UI状态同步完成: ${activeTab.title}`)
+              } catch (error) {
+                console.error(`同步激活标签页UI状态失败: ${activeTab.title}:`, error)
+              }
+            }
+          }
+        }
+
+        console.log(`从存储加载了 ${tabs.value.length} 个标签页`)
       }
     } catch (error) {
       console.error('加载标签页数据失败:', error)
+    } finally {
+      isLoading.value = false
     }
   }
 
@@ -357,8 +461,15 @@ export const useTabManagerStore = defineStore('tabManager', () => {
     return tabs.value.find(predicate)
   }
 
-  // 初始化时加载数据
-  // loadFromStorage()
+  // 初始化函数
+  const initialize = async (): Promise<void> => {
+    await loadFromStorage()
+  }
+
+  // 初始化时加载数据（异步执行，不阻塞store创建）
+  initialize().catch(error => {
+    console.error('标签页管理器初始化失败:', error)
+  })
 
   return {
     // 状态
@@ -380,6 +491,7 @@ export const useTabManagerStore = defineStore('tabManager', () => {
     closeTab,
     saveToStorage,
     loadFromStorage,
+    initialize,
 
     // 扩展方法
     renameTab,

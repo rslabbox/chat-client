@@ -46,16 +46,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { Delete, FolderAdd } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
 import { usePageManagerStore } from '@/stores/pageManager'
 import { usePluginStore } from '@/stores/plugins'
+import { useShortcutsStore, type Shortcut } from '@/stores/shortcuts'
 
 const historyStore = useHistoryStore()
 const pageManagerStore = usePageManagerStore()
 const pluginStore = usePluginStore()
+const shortcutsStore = useShortcutsStore()
 
 // 插件连接状态
 const isPluginConnected = computed(() => {
@@ -64,13 +66,8 @@ const isPluginConnected = computed(() => {
   return pluginStore.getInstanceState(instanceId)?.isConnected || false
 })
 
-// 快捷短语接口
-interface Shortcut {
-  id: string
-  title: string
-  content: string
-  createdAt: Date
-}
+// 当前插件ID
+const currentPluginId = computed(() => pageManagerStore.currentPluginId)
 
 // 快捷短语状态
 const shortcuts = ref<Shortcut[]>([])
@@ -80,36 +77,19 @@ const newShortcut = reactive({
   content: ''
 })
 
-// 快捷短语存储键
-const SHORTCUTS_STORAGE_KEY = 'chat-client-shortcuts'
-
-// 快捷短语相关方法
-const generateShortcutId = () => {
-  return `shortcut_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
-}
-
+// 加载当前插件的快捷短语
 const loadShortcuts = () => {
-  try {
-    const stored = localStorage.getItem(SHORTCUTS_STORAGE_KEY)
-    if (stored) {
-      const data = JSON.parse(stored)
-      shortcuts.value = data.map((item: any) => ({
-        ...item,
-        createdAt: new Date(item.createdAt)
-      }))
-    }
-  } catch (error) {
-    console.error('加载快捷短语失败:', error)
+  if (!currentPluginId.value) {
+    shortcuts.value = []
+    return
   }
+  shortcuts.value = shortcutsStore.getShortcutsByPluginId(currentPluginId.value)
 }
 
-const saveShortcuts = () => {
-  try {
-    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts.value))
-  } catch (error) {
-    console.error('保存快捷短语失败:', error)
-  }
-}
+// 监听插件ID变化，重新加载快捷短语
+watch(currentPluginId, () => {
+  loadShortcuts()
+}, { immediate: true })
 
 const handleAddShortcut = () => {
   if (!newShortcut.content.trim()) {
@@ -117,25 +97,39 @@ const handleAddShortcut = () => {
     return
   }
 
-  const shortcut: Shortcut = {
-    id: generateShortcutId(),
-    title: newShortcut.title.trim() || '',
-    content: newShortcut.content.trim(),
-    createdAt: new Date()
+  if (!currentPluginId.value) {
+    ElMessage.error('当前没有活跃的插件')
+    return
   }
 
-  shortcuts.value.unshift(shortcut)
-  saveShortcuts()
+  try {
+    const shortcut = shortcutsStore.addShortcut(
+      currentPluginId.value,
+      newShortcut.title.trim() || '',
+      newShortcut.content.trim()
+    )
 
-  // 重置表单
-  newShortcut.title = ''
-  newShortcut.content = ''
-  showAddShortcut.value = false
+    // 重新加载快捷短语列表
+    loadShortcuts()
 
-  ElMessage.success('快捷短语已添加')
+    // 重置表单
+    newShortcut.title = ''
+    newShortcut.content = ''
+    showAddShortcut.value = false
+
+    ElMessage.success('快捷短语已添加')
+  } catch (error) {
+    ElMessage.error('添加快捷短语失败')
+    console.error('添加快捷短语失败:', error)
+  }
 }
 
 const handleDeleteShortcut = async (shortcutId: string) => {
+  if (!currentPluginId.value) {
+    ElMessage.error('当前没有活跃的插件')
+    return
+  }
+
   try {
     await ElMessageBox.confirm(
       '确定要删除这个快捷短语吗？',
@@ -147,11 +141,13 @@ const handleDeleteShortcut = async (shortcutId: string) => {
       }
     )
 
-    const index = shortcuts.value.findIndex(s => s.id === shortcutId)
-    if (index > -1) {
-      shortcuts.value.splice(index, 1)
-      saveShortcuts()
+    const success = shortcutsStore.deleteShortcut(shortcutId, currentPluginId.value)
+    if (success) {
+      // 重新加载快捷短语列表
+      loadShortcuts()
       ElMessage.success('快捷短语已删除')
+    } else {
+      ElMessage.error('删除失败，快捷短语不存在')
     }
   } catch {
     // 用户取消删除
