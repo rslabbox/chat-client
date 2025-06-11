@@ -61,6 +61,7 @@
         </template>
       </el-dropdown>
       <div class="right-section">
+        <el-button type="default" @click="handlePluginManager" :icon="Box" size="small" circle title="插件管理" />
         <el-button type="default" @click="handleSettings" :icon="Setting" size="small" circle title="系统设置" />
       </div>
     </div>
@@ -71,18 +72,20 @@
       @close-to-right="handleCloseToRight" />
 
     <SystemSettings v-model="showSettings" />
+    <PluginManager v-model="showPluginManager" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, More, Setting, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Plus, More, Setting, ArrowLeft, ArrowRight, Box } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTabManagerStore, type Tab } from '@/stores/tabManager'
 import { usePluginStore } from '@/stores/plugins'
 import TabItem from './TabItem.vue'
 import TabContextMenu from './TabContextMenu.vue'
 import SystemSettings from '../SystemSettings.vue'
+import PluginManager from '../PluginManager.vue'
 import { useSettingsStore } from '@/stores/settings'
 
 const tabManagerStore = useTabManagerStore()
@@ -90,6 +93,7 @@ const pluginStore = usePluginStore()
 
 const settingsStore = useSettingsStore()
 const showSettings = ref(false)
+const showPluginManager = ref(false)
 
 // 计算属性
 const pinnedTabs = computed(() => tabManagerStore.pinnedTabs)
@@ -181,6 +185,11 @@ const handleTabManageCommand = async (command: string) => {
 // 处理系统设置
 const handleSettings = () => {
   showSettings.value = true
+}
+
+// 处理插件管理
+const handlePluginManager = () => {
+  showPluginManager.value = true
 }
 
 const handleTogglePanel = () => {

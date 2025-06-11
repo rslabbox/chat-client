@@ -9,11 +9,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { TabManager } from '../components/Tabs'
-import { cleanupEventListeners, setupEventListeners } from '@/api'
+import { cleanupEventListeners, setupEventListeners, downloadGithubRepo } from '@/api'
 
 // 初始化
 onMounted(() => {
   setupEventListeners();
+  downloadGithubRepo().then((res) => {
+    console.log(res);
+  });
 })
 
 onUnmounted(() => {

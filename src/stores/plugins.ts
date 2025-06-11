@@ -235,6 +235,11 @@ export const usePluginStore = defineStore('plugins', () => {
     }
   }
 
+  // 刷新插件列表
+  const refreshPlugins = async () => {
+    await loadPlugins()
+  }
+
   // 向当前插件实例发送消息
   const sendMessage = async (message: string, pluginId: string | null, instanceId: string | null) => {
     try {
@@ -288,6 +293,7 @@ export const usePluginStore = defineStore('plugins', () => {
     setInstanceState,
     syncInstanceState,
     loadPlugins,
+    refreshPlugins,
     mountPluginById,
     disposePluginInstance,
     connectPluginInstance,

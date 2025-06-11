@@ -97,7 +97,7 @@ impl PluginLoader {
                     name: config.plugin.name,
                     description: config.plugin.description,
                     version: config.plugin.version,
-                    author: config.plugin.author,
+                    author: Some(config.plugin.author),
                     library_path,
                     config_path: config_path.to_string_lossy().to_string(),
                     instance_id: None,

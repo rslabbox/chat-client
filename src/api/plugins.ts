@@ -3,7 +3,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
-import type { PluginMetadata } from './types'
+import type { PluginMetadata, AvailablePluginInfo, PluginDownloadResult } from './types'
 
 /**
  * 扫描并获取所有可用的插件列表
@@ -92,4 +92,35 @@ export async function sendMessageToPlugin(
  */
 export async function sendMessageToCurrentPlugin(message: string): Promise<string> {
   return await invoke<string>('send_message_to_current_plugin', { message })
+}
+
+/**
+ * 扫描可用插件列表（从插件仓库）
+ * @returns Promise<AvailablePluginInfo[]> 可用插件列表
+ */
+export async function scanAvailablePlugins(): Promise<AvailablePluginInfo[]> {
+  console.log('扫描可用插件列表')
+  try {
+    const plugins = await invoke<AvailablePluginInfo[]>('scan_available_plugins')
+    return plugins
+  } catch (error) {
+    console.error('Failed to scan available plugins:', error)
+    throw error
+  }
+}
+
+/**
+ * 下载并安装插件
+ * @param pluginId 插件ID
+ * @returns Promise<PluginDownloadResult> 下载结果
+ */
+export async function downloadPlugin(pluginId: string): Promise<PluginDownloadResult> {
+  console.log('下载插件:', pluginId)
+  try {
+    const result = await invoke<PluginDownloadResult>('download_plugin', { pluginId })
+    return result
+  } catch (error) {
+    console.error('Failed to download plugin:', error)
+    throw error
+  }
 }

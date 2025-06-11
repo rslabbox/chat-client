@@ -15,7 +15,9 @@ export {
   disconnectPlugin,
   getPluginStatus,
   sendMessageToPlugin,
-  sendMessageToCurrentPlugin
+  sendMessageToCurrentPlugin,
+  scanAvailablePlugins,
+  downloadPlugin
 } from './plugins'
 
 // 导出插件UI相关 API
@@ -27,6 +29,9 @@ export {
 
 // 导出事件监听相关 API
 export { setupEventListeners, cleanupEventListeners } from './listener'
+
+// 导出下载相关 API
+export { downloadGithubRepo } from './download'
 
 // 导出常用的 Tauri API（重新导出以便统一管理）
 export { invoke } from '@tauri-apps/api/core'

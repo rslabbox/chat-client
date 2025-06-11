@@ -6,7 +6,7 @@ pub mod plugins;
 use api::{
     connect_plugin, disconnect_plugin, dispose_plugin, get_plugin_status, get_plugin_ui, greet,
     handle_plugin_ui_event, handle_plugin_ui_update, mount_plugin, scan_plugins,
-    send_message_to_plugin,
+    send_message_to_plugin, download_github_repo, scan_available_plugins, download_plugin,
 };
 
 use plugin_interfaces::log_info;
@@ -27,7 +27,10 @@ pub fn run() {
             send_message_to_plugin,
             get_plugin_ui,
             handle_plugin_ui_update,
-            handle_plugin_ui_event
+            handle_plugin_ui_event,
+            download_github_repo,
+            scan_available_plugins,
+            download_plugin
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

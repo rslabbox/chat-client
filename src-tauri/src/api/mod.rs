@@ -4,7 +4,9 @@
 
 pub mod general;
 pub mod plugins;
+pub mod download;
 
 // 重新导出所有 API 命令函数，方便在 lib.rs 中使用
 pub use general::*;
 pub use plugins::*;
+pub use download::*;

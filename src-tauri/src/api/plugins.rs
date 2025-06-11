@@ -1,4 +1,4 @@
-use crate::plugins::{PluginManager, PluginMetadata};
+use crate::plugins::{PluginManager, PluginMetadata, PluginRepository, AvailablePluginInfo, PluginDownloadResult};
 use std::sync::{Arc, OnceLock};
 use tauri::AppHandle;
 
@@ -100,6 +100,20 @@ pub fn handle_plugin_ui_event(
 ) -> Result<bool, String> {
     let manager = get_plugin_manager()?;
     manager.handle_plugin_ui_event(&instance_id, &component_id, &value)
+}
+
+/// 扫描可用插件列表（从插件仓库）
+#[tauri::command]
+pub fn scan_available_plugins() -> Result<Vec<AvailablePluginInfo>, String> {
+    let repository = PluginRepository::new();
+    Ok(repository.scan_available_plugins())
+}
+
+/// 下载并安装插件
+#[tauri::command]
+pub async fn download_plugin(plugin_id: String) -> Result<PluginDownloadResult, String> {
+    let repository = PluginRepository::new();
+    Ok(repository.download_plugin(&plugin_id).await)
 }
 
 /// 清理所有插件（应用关闭时调用）
