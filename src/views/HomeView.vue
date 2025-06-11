@@ -8,7 +8,6 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-import PluginToolbar from '../components/PluginToolbar.vue'
 import { TabManager } from '../components/Tabs'
 import { cleanupEventListeners, setupEventListeners } from '@/api'
 

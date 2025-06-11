@@ -103,12 +103,6 @@ const handleAddShortcut = () => {
   }
 
   try {
-    const shortcut = shortcutsStore.addShortcut(
-      currentPluginId.value,
-      newShortcut.title.trim() || '',
-      newShortcut.content.trim()
-    )
-
     // 重新加载快捷短语列表
     loadShortcuts()
 
