@@ -2,17 +2,12 @@
   <div class="tab-manager">
     <!-- 标签页栏 -->
     <TabBar />
-    
+
     <!-- 标签页内容区域 -->
     <div class="tab-content-area">
       <!-- 当前活跃标签页的内容 -->
-      <TabContent
-        v-if="activeTab"
-        :key="activeTab.id"
-        :tab="activeTab"
-        class="active-tab-content"
-      />
-      
+      <TabContent v-if="activeTab" :key="activeTab.id" :tab="activeTab" class="active-tab-content" />
+
       <!-- 无标签页时的空状态 -->
       <div v-else class="empty-state">
         <el-empty description="暂无打开的标签页" :image-size="120">
@@ -26,12 +21,8 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item
-                  v-for="plugin in availablePlugins"
-                  :key="plugin.id"
-                  :command="plugin.id"
-                  :disabled="plugin.disabled"
-                >
+                <el-dropdown-item v-for="plugin in availablePlugins" :key="plugin.id" :command="plugin.id"
+                  :disabled="plugin.disabled">
                   <el-icon v-if="plugin.icon" class="plugin-icon">
                     <component :is="plugin.icon" />
                   </el-icon>
@@ -45,8 +36,7 @@
     </div>
 
     <!-- 标签页加载状态 -->
-    <div v-if="isLoading" class="tab-loading-overlay">
-      <el-loading-service />
+    <div v-if="isLoading" class="tab-loading-overlay" v-loading="isLoading" element-loading-text="加载中...">
     </div>
   </div>
 </template>

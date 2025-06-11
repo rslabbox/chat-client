@@ -281,10 +281,7 @@ impl PluginManager {
                     .push(instance_id.clone());
                 drop(plugin_instances);
 
-                Ok(format!(
-                    "插件 {} 实例 {} 挂载成功",
-                    plugin_metadata.name, instance_id
-                ))
+                Ok(format!("插件 {} 实例挂载成功", plugin_metadata.name))
             }
             Err(e) => {
                 // 清理失败的插件实例
@@ -368,6 +365,10 @@ impl PluginManager {
 
     /// 连接插件实例
     pub fn connect_plugin(&self, instance_id: &str) -> Result<String, String> {
+        log_info!("连接插件实例: {}", instance_id);
+        for instance in self.instances.lock().unwrap().values() {
+            log_info!("实例: {}", instance.instance_id);
+        }
         let mut instances = self.instances.lock().unwrap();
 
         if let Some(instance) = instances.get_mut(instance_id) {

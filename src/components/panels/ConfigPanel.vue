@@ -1,8 +1,6 @@
 <template>
-  <div class="config-panel">
+  <div class="config-content">
     <div class="config-header">
-      <h3>插件配置</h3>
-
       <div class="connection-status">
         <el-tag :type="isConnected ? 'success' : 'danger'" size="small">
           {{ isConnected ? '已连接' : '未连接' }}
@@ -10,7 +8,7 @@
       </div>
     </div>
 
-    <div class="config-content">
+    <div class="config-main">
       <!-- 插件UI组件 -->
       <PluginUI :instance-id="pageManagerStore.currentInstanceId || undefined" />
     </div>
@@ -29,26 +27,25 @@
 </template>
 
 <script setup lang="ts">
-import { Link, Close } from '@element-plus/icons-vue'
 import { computed } from 'vue'
+import { Link, Close } from '@element-plus/icons-vue'
+import { usePageManagerStore } from '@/stores/pageManager'
 import { usePluginStore } from '@/stores/plugins'
 import PluginUI from './PluginUI.vue'
-import { usePageManagerStore } from '@/stores/pageManager'
 
-const pluginStore = usePluginStore()
 const pageManagerStore = usePageManagerStore()
+const pluginStore = usePluginStore()
 
-// 计算属性
+// 插件连接状态
 const isConnected = computed(() => pluginStore.getInstanceState(pageManagerStore.currentInstanceId ?? "")?.isConnected || false)
 
-// 处理连接
+// 插件连接相关方法
 const handleConnect = async () => {
   if (pageManagerStore.currentInstanceId) {
     await pluginStore.connectPluginInstance(pageManagerStore.currentInstanceId)
   }
 }
 
-// 处理断开连接
 const handleDisconnect = async () => {
   if (pageManagerStore.currentInstanceId) {
     await pluginStore.disconnectPluginInstance(pageManagerStore.currentInstanceId)
@@ -57,55 +54,44 @@ const handleDisconnect = async () => {
 </script>
 
 <style scoped>
-.config-panel {
+.config-content {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
+  min-height: 0;
 }
 
 .config-header {
-  margin-bottom: 20px;
+  padding: 16px;
+  border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Grid布局中的第一行，固定高度 */
+  grid-row: 1;
 }
 
-.config-header h3 {
-  margin: 0;
-  color: #303133;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.config-content {
-  flex: 1;
+.config-main {
   overflow-y: auto;
-    overflow-x: hidden;
+  overflow-x: hidden;
+  padding: 16px;
+  /* 确保滚动条正确显示，避免内容被截断 */
+  box-sizing: border-box;
+  /* Grid布局中的第二行，占用所有可用空间 */
+  grid-row: 2;
+  min-height: 0;
 }
 
 .config-footer {
-  margin-top: auto;
-}
-
-.message-stats {
-  margin-bottom: 15px;
-}
-
-.stats-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #606266;
+  padding: 16px;
+  border-top: 1px solid #e4e7ed;
+  background-color: #ffffff;
+  /* Grid布局中的第三行，固定高度 */
+  grid-row: 3;
+  /* 确保底部按钮区域不会被滚动内容遮挡 */
+  position: relative;
+  z-index: 1;
 }
 </style>

@@ -322,6 +322,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* 添加底部间距，确保最后一个组件完全可见 */
+  padding-bottom: 20px;
 }
 
 .ui-component {
@@ -360,6 +362,7 @@ onUnmounted(() => {
   align-items: center;
   margin-bottom: 4px;
 }
+
 .horizontal-container {
   display: flex;
   gap: 10px;
@@ -368,16 +371,16 @@ onUnmounted(() => {
 
 .horizontal-child {
   min-width: 0;
-  }
-  
-  /* 固定宽度的子组件（如Label） */
-  .horizontal-child-fixed {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
-  
-  /* 可伸缩的子组件（如TextEdit, ComboBox等） */
-  .horizontal-child-flexible {
+}
+
+/* 固定宽度的子组件（如Label） */
+.horizontal-child-fixed {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* 可伸缩的子组件（如TextEdit, ComboBox等） */
+.horizontal-child-flexible {
   flex: 1;
   min-width: 0;
 }

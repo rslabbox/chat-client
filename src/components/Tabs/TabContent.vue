@@ -17,31 +17,20 @@
 
     <!-- 主要内容区域 -->
     <div class="main-content">
-      <!-- 左侧配置面板 -->
-      <div
-        v-if="settingsStore.leftPanelVisible"
-        class="left-panel"
-        :style="{ width: leftPanelWidth + 'px' }"
-      >
+      <!-- 左侧统一面板 -->
+      <div v-if="settingsStore.leftPanelVisible" class="left-panel" :style="{ width: leftPanelWidth + 'px' }">
         <div class="panel-content">
-          <ConfigPanel />
+          <UnifiedLeftPanel />
         </div>
       </div>
 
       <!-- 垂直分割线 -->
-      <div
-        v-if="settingsStore.leftPanelVisible"
-        class="vertical-divider"
-        @mousedown="startVerticalResize"
-      ></div>
+      <div v-if="settingsStore.leftPanelVisible" class="vertical-divider" @mousedown="startVerticalResize"></div>
 
       <!-- 中间消息区域 -->
       <div class="center-panel">
         <!-- 上半部分：消息显示区 -->
-        <div 
-          class="message-display" 
-          :style="{ height: messageDisplayHeight + 'px' }"
-        >
+        <div class="message-display" :style="{ flex: `${messageDisplayFlex} 1 0` }">
           <MessageDisplay />
         </div>
 
@@ -54,28 +43,11 @@
         </div>
       </div>
 
-      <!-- 垂直分割线 -->
-      <div
-        v-if="settingsStore.rightPanelVisible"
-        class="vertical-divider"
-        @mousedown="startRightVerticalResize"
-      ></div>
 
-      <!-- 右侧历史记录面板 -->
-      <div
-        v-if="settingsStore.rightPanelVisible"
-        class="right-panel"
-        :style="{ width: rightPanelWidth + 'px' }"
-      >
-        <div class="panel-content">
-          <HistoryPanel />
-        </div>
-      </div>
     </div>
 
     <!-- 标签页状态指示器 -->
-    <div v-if="isLoading" class="loading-indicator">
-      <el-loading-service />
+    <div v-if="isLoading" class="loading-indicator" v-loading="isLoading" element-loading-text="加载中...">
     </div>
   </div>
 </template>
@@ -85,10 +57,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { usePluginStore } from '@/stores/plugins'
 import { useHistoryStore } from '@/stores/history'
-import ConfigPanel from '../ConfigPanel.vue'
+import UnifiedLeftPanel from '../UnifiedLeftPanel.vue'
 import MessageDisplay from '../MessageDisplay.vue'
 import MessageInput from '../MessageInput.vue'
-import HistoryPanel from '../HistoryPanel.vue'
 import type { Tab } from '@/stores/tabManager'
 
 interface Props {
@@ -106,8 +77,7 @@ const historyStore = useHistoryStore()
 
 // 响应式数据
 const leftPanelWidth = ref(300)
-const rightPanelWidth = ref(300)
-const messageDisplayHeight = ref(400)
+const messageDisplayFlex = ref(1.5) // 使用flex比例，1.5表示消息显示区占1.5份，输入区占1份
 const isLoading = ref(false)
 
 // 计算属性
@@ -123,7 +93,6 @@ const messageCount = computed(() => {
 
 // 调整大小相关变量
 let isResizingVertical = false
-let isResizingRightVertical = false
 let isResizingHorizontal = false
 let startX = 0
 let startY = 0
@@ -175,38 +144,13 @@ const stopVerticalResize = () => {
   document.removeEventListener('mouseup', stopVerticalResize)
 }
 
-// 右侧垂直调整大小
-const startRightVerticalResize = (e: MouseEvent) => {
-  isResizingRightVertical = true
-  startX = e.clientX
-  startWidth = rightPanelWidth.value
-  document.addEventListener('mousemove', doRightVerticalResize)
-  document.addEventListener('mouseup', stopRightVerticalResize)
-  e.preventDefault()
-}
 
-const doRightVerticalResize = (e: MouseEvent) => {
-  if (!isResizingRightVertical) return
-
-  const deltaX = startX - e.clientX
-  const newWidth = startWidth + deltaX
-  const minWidth = 200
-  const maxWidth = window.innerWidth * 0.5
-
-  rightPanelWidth.value = Math.max(minWidth, Math.min(newWidth, maxWidth))
-}
-
-const stopRightVerticalResize = () => {
-  isResizingRightVertical = false
-  document.removeEventListener('mousemove', doRightVerticalResize)
-  document.removeEventListener('mouseup', stopRightVerticalResize)
-}
 
 // 水平调整大小
 const startHorizontalResize = (e: MouseEvent) => {
   isResizingHorizontal = true
   startY = e.clientY
-  startHeight = messageDisplayHeight.value
+  startHeight = messageDisplayFlex.value
   document.addEventListener('mousemove', doHorizontalResize)
   document.addEventListener('mouseup', stopHorizontalResize)
   e.preventDefault()
@@ -214,13 +158,17 @@ const startHorizontalResize = (e: MouseEvent) => {
 
 const doHorizontalResize = (e: MouseEvent) => {
   if (!isResizingHorizontal) return
-  
+
   const deltaY = e.clientY - startY
-  const newHeight = startHeight + deltaY
-  const minHeight = 200
-  const maxHeight = window.innerHeight - 300
-  
-  messageDisplayHeight.value = Math.max(minHeight, Math.min(newHeight, maxHeight))
+  // 将像素变化转换为flex比例变化
+  const flexDelta = deltaY / 100 // 每100px对应1个flex单位的变化
+  const newFlex = startHeight + flexDelta
+
+  // 限制flex比例在合理范围内
+  const minFlex = 0.5 // 最小比例
+  const maxFlex = 5    // 最大比例
+
+  messageDisplayFlex.value = Math.max(minFlex, Math.min(newFlex, maxFlex))
 }
 
 const stopHorizontalResize = () => {
@@ -231,24 +179,16 @@ const stopHorizontalResize = () => {
 
 // 初始化
 onMounted(() => {
-  // 设置初始高度
-  messageDisplayHeight.value = window.innerHeight - 320
-  
   // 窗口大小变化时的处理
   const handleResize = () => {
     const maxWidth = window.innerWidth * 0.5
     if (leftPanelWidth.value > maxWidth) {
       leftPanelWidth.value = maxWidth
     }
-    if (rightPanelWidth.value > maxWidth) {
-      rightPanelWidth.value = maxWidth
-    }
-
-    messageDisplayHeight.value = window.innerHeight - 320
   }
-  
+
   window.addEventListener('resize', handleResize)
-  
+
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
   })
@@ -316,6 +256,9 @@ onMounted(() => {
 .panel-content {
   width: 100%;
   height: 100%;
+  display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .vertical-divider {

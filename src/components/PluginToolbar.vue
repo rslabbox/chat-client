@@ -4,36 +4,16 @@
       <!-- 左侧：面板切换、插件选择器和刷新按钮 -->
       <div class="left-section">
         <div class="panel-toggle">
-          <el-button
-            type="default"
-            @click="handleTogglePanel"
-            :icon="settingsStore.leftPanelVisible ? ArrowLeft : ArrowRight"
-            size="small"
-            circle
-            :title="settingsStore.leftPanelVisible ? '收起配置面板' : '展开配置面板'"
-          />
+          <el-button type="default" @click="handleTogglePanel"
+            :icon="settingsStore.leftPanelVisible ? ArrowLeft : ArrowRight" size="small" circle
+            :title="settingsStore.leftPanelVisible ? '收起配置面板' : '展开配置面板'" />
         </div>
 
       </div>
 
-      <!-- 右侧：历史记录面板切换和系统设置按钮 -->
+      <!-- 右侧：系统设置按钮 -->
       <div class="right-section">
-        <el-button
-          type="default"
-          @click="handleToggleRightPanel"
-          :icon="settingsStore.rightPanelVisible ? ArrowRight : ArrowLeft"
-          size="small"
-          circle
-          :title="settingsStore.rightPanelVisible ? '收起历史记录' : '展开历史记录'"
-        />
-        <el-button
-          type="default"
-          @click="handleSettings"
-          :icon="Setting"
-          size="small"
-          circle
-          title="系统设置"
-        />
+        <el-button type="default" @click="handleSettings" :icon="Setting" size="small" circle title="系统设置" />
       </div>
     </div>
   </div>
@@ -59,11 +39,6 @@ const handleSettings = () => {
 // 处理左侧面板切换
 const handleTogglePanel = () => {
   settingsStore.toggleLeftPanel()
-}
-
-// 处理右侧面板切换
-const handleToggleRightPanel = () => {
-  settingsStore.toggleRightPanel()
 }
 </script>
 
