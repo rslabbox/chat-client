@@ -2,8 +2,7 @@ use plugin_interfaces::StreamError;
 use plugin_interfaces::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
-    PluginHandler, PluginInstanceContext, PluginInterface, PluginMessage, PluginStreamMessage,
-    PluginUiOption,
+    PluginHandler, PluginInstanceContext, PluginInterface, PluginStreamMessage,
 };
 use std::sync::Arc;
 use tokio::{runtime::Runtime, sync::Mutex};
@@ -34,12 +33,12 @@ impl ExamplePlugin {
             if ui.button("Short").clicked() {
                 log_info!("Send short message");
                 // 使用新的上下文传递API发送消息
-                self.send_message_to_frontend("Test Message", plugin_ctx);
+                plugin_ctx.send_message_to_frontend("Test Message");
             }
             if ui.button("Markdown").clicked() {
                 log_info!("Send Markdown");
                 // 使用新的上下文传递API发送复杂消息
-                self.send_message_to_frontend(
+                plugin_ctx.send_message_to_frontend(
                     r"以下是一个代码块和一个数学公式的示例：
 
 ### 代码块 (Python)
@@ -68,7 +67,6 @@ $$ e^{i\theta} = \cos\theta + i\sin\theta $$
 
 当 $\theta = \pi$ 时，得到：
 $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
-                    plugin_ctx,
                 );
             }
         });
@@ -81,7 +79,7 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
         // 重新实现流式消息功能，支持上下文传递
         log_info!("Starting background stream demo with context support");
 
-        match self.send_message_stream_start(&plugin_ctx) {
+        match plugin_ctx.send_message_stream_start() {
             Ok(stream_id) => {
                 log_info!("Started background stream: {}", stream_id);
 
@@ -101,7 +99,7 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
 
                 for (i, chunk) in chunks.iter().enumerate() {
                     let is_final = i == chunks.len() - 1;
-                    match self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx) {
+                    match plugin_ctx.send_message_stream(&stream_id, chunk, is_final) {
                         Ok(_) => {
                             log_info!("Sent chunk {}/{}: {}", i + 1, chunks.len(), chunk);
                         }
@@ -116,11 +114,10 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
                                 }
                                 _ => {
                                     log_warn!("Failed to send background stream chunk: {}", e);
-                                    let _ = self.send_message_stream_end(
+                                    let _ = plugin_ctx.send_message_stream_end(
                                         &stream_id,
                                         false,
                                         Some(&format!("Error: {}", e)),
-                                        &plugin_ctx,
                                     );
                                     return;
                                 }
@@ -133,7 +130,7 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
                 }
 
                 // 结束流式传输
-                if let Err(e) = self.send_message_stream_end(&stream_id, true, None, &plugin_ctx) {
+                if let Err(e) = plugin_ctx.send_message_stream_end(&stream_id, true, None) {
                     log_warn!("Failed to end background stream: {}", e);
                 }
 
@@ -187,13 +184,12 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
         };
 
         // 现在可以正确地发送消息到前端
-        self.send_message_to_frontend(
+        instance_context.send_message_to_frontend(
             &format!("Age updated from {} to {} (+{})", old_age, new_age, 5),
-            &instance_context,
         );
 
         // 刷新UI
-        self.refresh_ui(&instance_context);
+        instance_context.refresh_ui();
     }
 
     /// 启动异步修改 age 的任务
@@ -398,9 +394,8 @@ impl PluginHandler for ExamplePlugin {
         );
 
         // 向前端发送响应
-        self.send_message_to_frontend(
+        plugin_ctx.send_message_to_frontend(
             &format!("[{}]收到消息：{}{}", metadata.name, message, history_info),
-            plugin_ctx,
         );
         Ok(response)
     }
