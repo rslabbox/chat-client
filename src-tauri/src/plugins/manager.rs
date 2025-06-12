@@ -211,6 +211,7 @@ impl PluginManager {
         // 加载插件
         let mut plugin_metadata = self.find_plugin_metadata(plugin_id)?;
         plugin_metadata.instance_id = Some(instance_id.clone());
+        log_info!("插件动态链接库路径: {:?}", plugin_metadata.library_path);
         let library_path = plugin_metadata
             .library_path
             .as_ref()

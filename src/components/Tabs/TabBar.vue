@@ -23,41 +23,12 @@
 
     <!-- 新建标签页按钮 -->
     <div class="tab-actions">
-      <el-dropdown @command="handleNewTabCommand" trigger="click">
-        <el-button link :icon="Plus" size="small" class="new-tab-btn" :disabled="!canCreateNewTab" title="新建标签页" />
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item v-for="plugin in availablePlugins" :key="plugin.id" :command="plugin.id"
-              :disabled="plugin.disabled">
-              <el-icon v-if="plugin.icon" class="plugin-icon">
-                <component :is="plugin.icon" />
-              </el-icon>
-              {{ plugin.name }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <el-button link :icon="Plus" size="small" class="new-tab-btn" :disabled="!canCreateNewTab" title="新建标签页"
+        @click="showNewTabDialog = true" />
 
       <!-- 标签页管理按钮 -->
-      <el-dropdown @command="handleTabManageCommand" trigger="click">
-        <el-button link :icon="More" size="small" class="manage-tab-btn" title="标签页管理" />
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="close-all" :disabled="tabCount === 0">
-              关闭所有标签页
-            </el-dropdown-item>
-            <el-dropdown-item command="close-others" :disabled="tabCount <= 1">
-              关闭其他标签页
-            </el-dropdown-item>
-            <el-dropdown-item command="close-unpinned" :disabled="activeTabs.length === 0">
-              关闭未固定标签页
-            </el-dropdown-item>
-            <el-dropdown-item divided command="restore-session">
-              恢复会话
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <el-button link :icon="More" size="small" class="manage-tab-btn" title="标签页管理"
+        @click="showTabManageDialog = true" />
       <div class="right-section">
         <el-button type="default" @click="handlePluginManager" :icon="Box" size="small" circle title="插件管理" />
         <el-button type="default" @click="handleSettings" :icon="Setting" size="small" circle title="系统设置" />
@@ -71,12 +42,79 @@
 
     <SystemSettings v-model="showSettings" />
     <PluginManager v-model="showPluginManager" />
+
+    <!-- 新建标签页弹窗 -->
+    <el-dialog v-model="showNewTabDialog" title="新建标签页" width="400px" :before-close="handleNewTabDialogClose">
+      <div class="new-tab-dialog">
+        <div class="dialog-description">
+          <p>选择要创建的插件类型：</p>
+        </div>
+        <div class="plugin-list">
+          <div v-for="plugin in availablePlugins" :key="plugin.id" class="plugin-item"
+            :class="{ disabled: plugin.disabled }" @click="!plugin.disabled && handleCreateTab(plugin.id)">
+            <el-icon v-if="plugin.icon" class="plugin-icon">
+              <component :is="plugin.icon" />
+            </el-icon>
+            <div class="plugin-info">
+              <div class="plugin-name">{{ plugin.name }}</div>
+              <div class="plugin-description">{{ plugin.description }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="success" @click="handleOpenPluginManager">
+          <el-icon>
+            <Box />
+          </el-icon>
+          插件管理
+        </el-button>
+        <el-button @click="showNewTabDialog = false">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 标签页管理弹窗 -->
+    <el-dialog v-model="showTabManageDialog" title="标签页管理" width="350px" :before-close="handleTabManageDialogClose">
+      <div class="tab-manage-dialog">
+        <div class="manage-actions">
+          <el-button type="danger" :disabled="tabCount === 0" @click="handleManageAction('close-all')" block>
+            <el-icon>
+              <Close />
+            </el-icon>
+            关闭所有标签页
+          </el-button>
+          <el-button type="warning" :disabled="tabCount <= 1" @click="handleManageAction('close-others')" block>
+            <el-icon>
+              <Close />
+            </el-icon>
+            关闭其他标签页
+          </el-button>
+          <el-button type="info" :disabled="activeTabs.length === 0" @click="handleManageAction('close-unpinned')"
+            block>
+            <el-icon>
+              <Close />
+            </el-icon>
+            关闭未固定标签页
+          </el-button>
+          <el-divider />
+          <el-button type="primary" @click="handleManageAction('restore-session')" block>
+            <el-icon>
+              <Refresh />
+            </el-icon>
+            恢复会话
+          </el-button>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showTabManageDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Plus, More, Setting, ArrowLeft, ArrowRight, Box } from '@element-plus/icons-vue'
+import { Plus, More, Setting, ArrowLeft, ArrowRight, Box, Close, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTabManagerStore, type Tab } from '@/stores/tabManager'
 import { usePluginStore } from '@/stores/plugins'
@@ -92,6 +130,8 @@ const pluginStore = usePluginStore()
 const settingsStore = useSettingsStore()
 const showSettings = ref(false)
 const showPluginManager = ref(false)
+const showNewTabDialog = ref(false)
+const showTabManageDialog = ref(false)
 
 // 计算属性
 const pinnedTabs = computed(() => tabManagerStore.pinnedTabs)
@@ -129,19 +169,31 @@ const handleTabClose = async (tabId: string) => {
   }
 }
 
-// 处理新建标签页命令
-const handleNewTabCommand = async (pluginId: string) => {
+// 处理创建标签页
+const handleCreateTab = async (pluginId: string) => {
   try {
     await tabManagerStore.createNewTab(pluginId)
     ElMessage.success('新标签页已创建')
+    showNewTabDialog.value = false
   } catch (error) {
     console.error('创建标签页失败:', error)
     ElMessage.error('创建标签页失败')
   }
 }
 
-// 处理标签页管理命令
-const handleTabManageCommand = async (command: string) => {
+// 处理新建标签页弹窗关闭
+const handleNewTabDialogClose = () => {
+  showNewTabDialog.value = false
+}
+
+// 处理打开插件管理
+const handleOpenPluginManager = () => {
+  showNewTabDialog.value = false
+  handlePluginManager()
+}
+
+// 处理标签页管理操作
+const handleManageAction = async (command: string) => {
   try {
     switch (command) {
       case 'close-all':
@@ -150,12 +202,14 @@ const handleTabManageCommand = async (command: string) => {
         })
         await tabManagerStore.closeAllTabs()
         ElMessage.success('所有标签页已关闭')
+        showTabManageDialog.value = false
         break
 
       case 'close-others':
         if (tabManagerStore.activeTab) {
           await tabManagerStore.closeOtherTabs(tabManagerStore.activeTab.id)
           ElMessage.success('其他标签页已关闭')
+          showTabManageDialog.value = false
         }
         break
 
@@ -165,11 +219,13 @@ const handleTabManageCommand = async (command: string) => {
           await tabManagerStore.closeTab(tabId)
         }
         ElMessage.success('未固定标签页已关闭')
+        showTabManageDialog.value = false
         break
 
       case 'restore-session':
         // TODO: 实现会话恢复功能
         ElMessage.info('会话恢复功能开发中')
+        showTabManageDialog.value = false
         break
     }
   } catch (error) {
@@ -178,6 +234,11 @@ const handleTabManageCommand = async (command: string) => {
       ElMessage.error('操作失败')
     }
   }
+}
+
+// 处理标签页管理弹窗关闭
+const handleTabManageDialogClose = () => {
+  showTabManageDialog.value = false
 }
 
 // 处理系统设置
@@ -238,6 +299,16 @@ const handleCloseToRight = async (tab: Tab) => {
     ElMessage.error('操作失败')
   }
 }
+
+// 暴露方法给父组件调用
+const openNewTabDialog = () => {
+  showNewTabDialog.value = true
+}
+
+// 暴露给模板引用
+defineExpose({
+  openNewTabDialog
+})
 </script>
 
 <style scoped>
@@ -303,6 +374,89 @@ const handleCloseToRight = async (tab: Tab) => {
   margin-right: 8px;
 }
 
+/* 弹窗样式 */
+.new-tab-dialog {
+  padding: 8px 0;
+}
+
+.dialog-description {
+  margin-bottom: 16px;
+}
+
+.dialog-description p {
+  margin: 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.plugin-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.plugin-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.plugin-item:hover:not(.disabled) {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.plugin-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f5f7fa;
+}
+
+.plugin-item .plugin-icon {
+  margin-right: 12px;
+  font-size: 20px;
+  color: #409eff;
+}
+
+.plugin-info {
+  flex: 1;
+}
+
+.plugin-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.plugin-description {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+}
+
+.tab-manage-dialog {
+  padding: 8px 0;
+}
+
+.manage-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manage-actions .el-button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.manage-actions .el-button .el-icon {
+  margin-right: 8px;
+}
 /* 响应式设计 */
 @media (max-width: 768px) {
   .tab-bar {

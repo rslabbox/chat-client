@@ -1,7 +1,7 @@
 <template>
   <div class="tab-manager">
     <!-- 标签页栏 -->
-    <TabBar />
+    <TabBar ref="tabBarRef" />
 
     <!-- 标签页内容区域 -->
     <div class="tab-content-area">
@@ -15,22 +15,9 @@
             <p>暂无打开的标签页</p>
             <p class="empty-hint">选择一个插件开始新的对话</p>
           </template>
-          <el-dropdown @command="handleCreateTab" trigger="click">
-            <el-button type="primary" :icon="Plus">
-              新建标签页
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-for="plugin in availablePlugins" :key="plugin.id" :command="plugin.id"
-                  :disabled="plugin.disabled">
-                  <el-icon v-if="plugin.icon" class="plugin-icon">
-                    <component :is="plugin.icon" />
-                  </el-icon>
-                  {{ plugin.name }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button type="primary" :icon="Plus" @click="handleOpenNewTabDialog">
+            新建标签页
+          </el-button>
         </el-empty>
       </div>
     </div>
@@ -42,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useTabManagerStore } from '@/stores/tabManager'
@@ -53,20 +40,17 @@ import TabContent from './TabContent.vue'
 const tabManagerStore = useTabManagerStore()
 const pluginStore = usePluginStore()
 
+// TabBar组件引用
+const tabBarRef = ref<InstanceType<typeof TabBar>>()
+
 // 计算属性
 const activeTab = computed(() => tabManagerStore.activeTab)
 const isLoading = computed(() => tabManagerStore.isLoading)
 const availablePlugins = computed(() => pluginStore.plugins.filter(p => !p.disabled))
 
-// 创建新标签页
-const handleCreateTab = async (pluginId: string) => {
-  try {
-    await tabManagerStore.createNewTab(pluginId)
-    ElMessage.success('新标签页已创建')
-  } catch (error) {
-    console.error('创建标签页失败:', error)
-    ElMessage.error('创建标签页失败')
-  }
+// 打开新建标签页弹窗
+const handleOpenNewTabDialog = () => {
+  tabBarRef.value?.openNewTabDialog()
 }
 
 // 键盘快捷键处理
@@ -74,11 +58,8 @@ const handleKeydown = (event: KeyboardEvent) => {
   // Ctrl/Cmd + T: 新建标签页
   if ((event.ctrlKey || event.metaKey) && event.key === 't') {
     event.preventDefault()
-    // 显示插件选择菜单或创建默认标签页
-    if (availablePlugins.value.length === 1) {
-      handleCreateTab(availablePlugins.value[0].id)
-    }
-    // 如果有多个插件，这里可以显示快速选择界面
+    // 打开新建标签页弹窗
+    handleOpenNewTabDialog()
   }
 
   // Ctrl/Cmd + W: 关闭当前标签页

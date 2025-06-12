@@ -68,10 +68,17 @@ impl PluginLoader {
         if !config_path.exists() {
             return None;
         }
-        log_info!("Loading plugin from {:?}", config_path);
         match PluginConfig::from_file(&config_path) {
             Ok(config) => {
-                let library_path = self.find_library_file(plugin_dir, &config.plugin.library);
+
+                let library_path = if let Some(library_name) = config.plugin.library {
+                    self.find_library_file(plugin_dir, library_name.as_str())
+                } else {
+                    self.find_library_file(plugin_dir, &format!("{}-{}", config.plugin.id, config.plugin.version))
+                };
+                if library_path.is_none() {
+                    log_warn!("Failed to find library file for plugin: {:?}", config_path);
+                }
                 Some(PluginMetadata {
                     id: config.plugin.id,
                     disabled: config.plugin.disabled, // 默认启用，后续可以从配置中读取
@@ -106,6 +113,8 @@ impl PluginLoader {
         } else {
             format!("lib{}.so", library_name)
         };
+
+        log_info!("Looking for library file: {}", library_name_dylib);
 
         // 直接在插件目录中查找
         let direct_path = plugin_dir.join(&library_name_dylib);
