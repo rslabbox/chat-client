@@ -14,6 +14,7 @@ export interface PluginMetadata {
   config_path: string    // 配置文件路径
   icon?: string          // 插件图标
   color?: string         // 插件颜色
+  require_history?: boolean  // 是否需要接收历史记录
 }
 
 // 下载响应接口

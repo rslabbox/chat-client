@@ -9,3 +9,4 @@ library = "example"
 category = "example"
 tags = ["demo", "sample"]
 min_app_version = "0.1.0"
+require_history = true

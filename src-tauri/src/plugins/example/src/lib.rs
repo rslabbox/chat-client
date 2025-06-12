@@ -89,7 +89,7 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
                     "后台第一部分数据...",
                     "后台第二部分数据...",
                     "后台第三部分数据...",
-                    "后台第四部分数据，请稍等...",
+                    "后台第四部分数据，已完成",
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
@@ -350,18 +350,34 @@ impl PluginHandler for ExamplePlugin {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let metadata = plugin_ctx.get_metadata();
         log_info!(
-            "Plugin Recive Message. Metadata: id={}, name={}, version={}, instance_id={}",
+            "Plugin Recive Message. Metadata: id={}, name={}, version={}, instance_id={}, require_history={}",
             metadata.id,
             metadata.name,
             metadata.version,
-            metadata.instance_id.clone().unwrap_or("None".to_string())
+            metadata.instance_id.clone().unwrap_or("None".to_string()),
+            metadata.require_history
         );
 
-        let response = format!("Echo from {}: {}", plugin_ctx.get_metadata().name, message);
+        // 检查是否有历史记录
+        let history_info = if metadata.require_history {
+            if let Some(history) = plugin_ctx.get_history() {
+                format!("（包含 {} 条历史记录）", history.len())
+            } else {
+                "（无历史记录）".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+
+        let response = format!("Echo from {}: {}{}",
+            plugin_ctx.get_metadata().name,
+            message,
+            history_info
+        );
 
         // 向前端发送响应
         self.send_message_to_frontend(
-            &format!("[{}]收到消息：{}", metadata.name, message),
+            &format!("[{}]收到消息：{}{}", metadata.name, message, history_info),
             plugin_ctx,
         );
         Ok(response)

@@ -68,11 +68,10 @@ impl PluginLoader {
         if !config_path.exists() {
             return None;
         }
-
+        log_info!("Loading plugin from {:?}", config_path);
         match PluginConfig::from_file(&config_path) {
             Ok(config) => {
                 let library_path = self.find_library_file(plugin_dir, &config.plugin.library);
-
                 Some(PluginMetadata {
                     id: config.plugin.id,
                     disabled: config.plugin.disabled, // 默认启用，后续可以从配置中读取
@@ -83,6 +82,7 @@ impl PluginLoader {
                     library_path,
                     config_path: config_path.to_string_lossy().to_string(),
                     instance_id: None,
+                    require_history: config.plugin.require_history,
                 })
             }
             Err(e) => {

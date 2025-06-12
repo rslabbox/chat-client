@@ -1,5 +1,7 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
+use plugin_interfaces::metadata::HistoryMessage;
+use serde_json;
 use plugin_interfaces::{
     log_error, log_info,
     pluginui::{Context, Ui},
@@ -627,6 +629,7 @@ impl PluginManager {
         plugin_id: &str,
         instance_id: &str,
         message: &str,
+        history: Option<Vec<HistoryMessage>>,
     ) -> Result<String, String> {
         let mut instances = self.instances.lock().unwrap();
 
@@ -645,6 +648,42 @@ impl PluginManager {
 
             if !instance.is_connected {
                 return Err(format!("插件实例 {} 未连接", instance_id));
+            }
+
+            // 如果插件需要历史记录，先设置历史记录
+            if instance.metadata.require_history {
+                if let Some(history_data) = &history {
+                    // 将历史记录序列化为 JSON
+                    match serde_json::to_string(history_data) {
+                        Ok(history_json) => {
+                            let history_cstr = std::ffi::CString::new(history_json)
+                                .map_err(|_| "历史记录转换失败".to_string())?;
+
+                            // 调用插件的 set_history 方法
+                            let set_history_result = unsafe {
+                                ((*instance.handler).set_history)(
+                                    (*instance.handler).plugin_ptr,
+                                    history_cstr.as_ptr(),
+                                )
+                            };
+
+                            if set_history_result != 0 {
+                                log_error!("设置插件历史记录失败");
+                            }
+                        }
+                        Err(e) => {
+                            log_error!("序列化历史记录失败: {}", e);
+                        }
+                    }
+                } else {
+                    // 清除历史记录
+                    let _ = unsafe {
+                        ((*instance.handler).set_history)(
+                            (*instance.handler).plugin_ptr,
+                            std::ptr::null(),
+                        )
+                    };
+                }
             }
 
             // 调用插件的 handle_message 方法

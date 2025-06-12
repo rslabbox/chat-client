@@ -1,6 +1,7 @@
 use crate::plugins::{
     AvailablePluginInfo, DownloadResponse, PluginDownloadResult, PluginManager, PluginMetadata, PluginRepository
 };
+use plugin_interfaces::metadata::HistoryMessage;
 use std::sync::{Arc, OnceLock};
 use tauri::AppHandle;
 
@@ -70,9 +71,10 @@ pub fn send_message_to_plugin(
     plugin_id: String,
     instance_id: String,
     message: String,
+    history: Option<Vec<HistoryMessage>>,
 ) -> Result<String, String> {
     let manager = get_plugin_manager()?;
-    manager.send_message_to_plugin_instance(&plugin_id, &instance_id, &message)
+    manager.send_message_to_plugin_instance(&plugin_id, &instance_id, &message, history)
 }
 
 /// 获取插件实例UI定义

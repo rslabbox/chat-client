@@ -4,6 +4,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import type { PluginMetadata, AvailablePluginInfo, PluginDownloadResult } from './types'
+import type { BaseMessage } from '../stores/history'
 
 /**
  * 扫描并获取所有可用的插件列表
@@ -71,17 +72,20 @@ export async function getPluginStatus(instanceId: string): Promise<[boolean, boo
  * @param pluginId 插件ID
  * @param instanceId 实例ID
  * @param message 要发送的消息
+ * @param history 可选的历史记录，如果插件配置了 require_history=true 则会传递
  * @returns Promise<string> 插件返回的响应
  */
 export async function sendMessageToPlugin(
   pluginId: string,
   instanceId: string,
-  message: string
+  message: string,
+  history?: BaseMessage[]
 ): Promise<string> {
   return await invoke<string>('send_message_to_plugin', {
     pluginId,
     instanceId,
-    message
+    message,
+    history: history || null
   })
 }
 

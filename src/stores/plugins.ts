@@ -11,6 +11,7 @@ import {
   getPluginStatus,
   type PluginMetadata
 } from '@/api'
+import type { BaseMessage } from './history'
 
 export interface PluginInstanceState {
   instanceId: string
@@ -271,7 +272,43 @@ export const usePluginStore = defineStore('plugins', () => {
         throw new Error('无法确定目标插件实例：请确保有活跃的插件标签页或提供 pluginId 和 instanceId 参数')
       }
 
-      const response = await sendMessageToPlugin(targetPluginId, targetInstanceId, message)
+      // 检查插件是否需要历史记录
+      const plugin = plugins.value.find(p => p.id === targetPluginId)
+      let history: BaseMessage[] | undefined = undefined
+
+      if (plugin?.require_history) {
+        // 如果插件需要历史记录，获取当前会话的历史记录
+        try {
+          const { useHistoryStore } = await import('./history')
+          const historyStore = useHistoryStore()
+
+          // 尝试获取当前会话ID
+          let currentSessionId: string | null = null
+
+          // 先从 tabManager 获取
+          const { useTabManagerStore } = await import('./tabManager')
+          const tabManagerStore = useTabManagerStore()
+          if (tabManagerStore.activeTab?.sessionId) {
+            currentSessionId = tabManagerStore.activeTab.sessionId
+          }
+
+          // 如果没有，从 pageManager 获取
+          if (!currentSessionId) {
+            const { usePageManagerStore } = await import('./pageManager')
+            const pageManagerStore = usePageManagerStore()
+            currentSessionId = pageManagerStore.currentSessionId
+          }
+
+          if (currentSessionId) {
+            history = historyStore.getMessagesBySessionId(currentSessionId)
+          }
+        } catch (error) {
+          console.warn('获取历史记录失败:', error)
+          // 即使获取历史记录失败，也继续发送消息，只是不传递历史记录
+        }
+      }
+
+      const response = await sendMessageToPlugin(targetPluginId, targetInstanceId, message, history)
       return response
     } catch (error) {
       const errorMsg = error as string

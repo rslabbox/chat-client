@@ -41,6 +41,9 @@ pub struct PluginInfo {
     pub dependencies: Vec<String>,
     #[serde(default)]
     pub library: String, // 动态库文件名
+    /// 是否需要接收历史记录，默认为 false
+    #[serde(default)]
+    pub require_history: bool,
 }
 
 /// 下载配置
