@@ -22,7 +22,7 @@
           清空
         </el-button>
 
-        <el-button type="primary" @click="() => {
+        <el-button :type="hasActiveStream ? 'danger' : 'primary'" @click="() => {
           console.log('按钮点击 - hasActiveStream:', hasActiveStream);
           console.log('按钮点击 - 将调用:', hasActiveStream ? 'handleStop' : 'handleSend');
           hasActiveStream ? handleStop() : handleSend();
