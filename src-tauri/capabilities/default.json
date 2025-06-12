@@ -12,6 +12,8 @@
   "core:window:allow-toggle-maximize",
   "core:window:allow-destroy",
   "core:window:allow-hide",
-  "core:window:allow-show"
+  "core:window:allow-show",
+  "opener:default",
+  "opener:allow-open-url"
   ]
 }

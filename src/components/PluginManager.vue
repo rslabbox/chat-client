@@ -128,6 +128,7 @@ import { scanAvailablePlugins, downloadPlugin, uninstallPlugin } from '@/api'
 import { downloadGithubRepo } from '@/api/download'
 import type { AvailablePluginInfo } from '@/api/types'
 import { usePluginStore } from '@/stores/plugins'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 // Props
 interface Props {
@@ -355,16 +356,26 @@ const handleUninstall = async (plugin: AvailablePluginInfo) => {
 }
 
 // 处理主页链接
-const handleHomepage = (plugin: AvailablePluginInfo) => {
+const handleHomepage = async (plugin: AvailablePluginInfo) => {
   if (plugin.homepage) {
-    window.open(plugin.homepage, '_blank')
+    try {
+      await openUrl(plugin.homepage)
+    } catch (error) {
+      console.error('打开主页链接失败:', error)
+      ElMessage.error('打开主页链接失败')
+    }
   }
 }
 
 // 处理仓库链接
-const handleRepository = (plugin: AvailablePluginInfo) => {
+const handleRepository = async (plugin: AvailablePluginInfo) => {
   if (plugin.repository) {
-    window.open(plugin.repository, '_blank')
+    try {
+      await openUrl(plugin.repository)
+    } catch (error) {
+      console.error('打开仓库链接失败:', error)
+      ElMessage.error('打开仓库链接失败')
+    }
   }
 }
 
