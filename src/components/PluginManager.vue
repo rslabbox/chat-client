@@ -22,7 +22,9 @@
     <div class="plugin-manager">
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">
-        <el-loading-spinner />
+        <el-icon class="is-loading">
+          <Loading />
+        </el-icon>
         <span>正在加载插件列表...</span>
       </div>
 

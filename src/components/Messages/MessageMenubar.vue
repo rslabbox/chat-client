@@ -3,12 +3,12 @@
     <div class="menu-buttons">
       <!-- 复制按钮 -->
       <el-tooltip content="复制消息" placement="top">
-        <el-button size="small" text @click="handleCopy" :icon="DocumentCopy" />
+        <el-button size="small" link @click="handleCopy" :icon="DocumentCopy" />
       </el-tooltip>
 
       <!-- 更多操作下拉菜单 -->
       <el-dropdown @command="handleCommand" trigger="click">
-        <el-button size="small" text :icon="MoreFilled" />
+        <el-button size="small" link :icon="MoreFilled" />
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="copy-raw">

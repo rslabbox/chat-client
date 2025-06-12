@@ -24,8 +24,7 @@
     <!-- 新建标签页按钮 -->
     <div class="tab-actions">
       <el-dropdown @command="handleNewTabCommand" trigger="click">
-        <el-button type="text" :icon="Plus" size="small" class="new-tab-btn" :disabled="!canCreateNewTab"
-          title="新建标签页" />
+        <el-button link :icon="Plus" size="small" class="new-tab-btn" :disabled="!canCreateNewTab" title="新建标签页" />
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item v-for="plugin in availablePlugins" :key="plugin.id" :command="plugin.id"
@@ -41,7 +40,7 @@
 
       <!-- 标签页管理按钮 -->
       <el-dropdown @command="handleTabManageCommand" trigger="click">
-        <el-button type="text" :icon="More" size="small" class="manage-tab-btn" title="标签页管理" />
+        <el-button link :icon="More" size="small" class="manage-tab-btn" title="标签页管理" />
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="close-all" :disabled="tabCount === 0">
@@ -53,8 +52,7 @@
             <el-dropdown-item command="close-unpinned" :disabled="activeTabs.length === 0">
               关闭未固定标签页
             </el-dropdown-item>
-            <el-dropdown-divider />
-            <el-dropdown-item command="restore-session">
+            <el-dropdown-item divided command="restore-session">
               恢复会话
             </el-dropdown-item>
           </el-dropdown-menu>
