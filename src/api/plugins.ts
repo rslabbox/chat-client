@@ -128,3 +128,19 @@ export async function downloadPlugin(pluginId: string): Promise<PluginDownloadRe
     throw error
   }
 }
+
+/**
+ * 卸载已安装的插件
+ * @param pluginId 插件ID
+ * @returns Promise<PluginDownloadResult> 卸载结果
+ */
+export async function uninstallPlugin(pluginId: string): Promise<PluginDownloadResult> {
+  console.log('卸载插件:', pluginId)
+  try {
+    const result = await invoke<PluginDownloadResult>('uninstall_plugin', { pluginId })
+    return result
+  } catch (error) {
+    console.error('Failed to uninstall plugin:', error)
+    throw error
+  }
+}

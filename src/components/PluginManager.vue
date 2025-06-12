@@ -80,9 +80,16 @@
                   升级
                 </el-button>
 
-                <el-button v-else type="success" size="small" disabled style="font-size: 12px; padding: 4px 8px;">
-                  已安装
-                </el-button>
+                <template v-else>
+                  <el-button type="success" size="small" disabled style="font-size: 12px; padding: 4px 8px;">
+                    已安装
+                  </el-button>
+
+                  <el-button type="danger" size="small" :loading="downloadingPlugins.has(plugin.id)"
+                    @click="handleUninstall(plugin)" style="font-size: 12px; padding: 4px 8px;">
+                    卸载
+                  </el-button>
+                </template>
 
                 <el-button type="default" size="small" @click="handleHomepage(plugin)" :disabled="!plugin.homepage"
                   style="font-size: 12px; padding: 4px 8px;">
@@ -115,7 +122,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { Box, Loading, Connection, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { scanAvailablePlugins, downloadPlugin } from '@/api'
+import { scanAvailablePlugins, downloadPlugin, uninstallPlugin } from '@/api'
 import { downloadGithubRepo } from '@/api/download'
 import type { AvailablePluginInfo } from '@/api/types'
 import { usePluginStore } from '@/stores/plugins'
@@ -298,6 +305,47 @@ const handleDownload = async (plugin: AvailablePluginInfo) => {
     if (error !== 'cancel') {
       console.error('下载插件失败:', error)
       ElMessage.error('下载插件失败')
+    }
+  } finally {
+    downloadingPlugins.value.delete(plugin.id)
+  }
+}
+
+// 处理插件卸载
+const handleUninstall = async (plugin: AvailablePluginInfo) => {
+  try {
+    const installedVersion = getInstalledPluginVersion(plugin.id)
+
+    const confirmMessage = `确定要卸载插件 "${plugin.name}" (v${installedVersion}) 吗？\n\n卸载后插件的所有文件将被删除，此操作不可撤销。`
+
+    await ElMessageBox.confirm(
+      confirmMessage,
+      '确认卸载',
+      {
+        confirmButtonText: '确定卸载',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: false,
+      }
+    )
+
+    downloadingPlugins.value.add(plugin.id)
+
+    const result = await uninstallPlugin(plugin.id)
+
+    if (result.success) {
+      ElMessage.success(`插件 "${plugin.name}" 卸载成功`)
+      // 重新扫描插件列表
+      await pluginStore.refreshPlugins()
+      // 重新加载可用插件列表以更新状态
+      await loadAvailablePlugins()
+    } else {
+      ElMessage.error(`卸载失败: ${result.message || '未知错误'}`)
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('卸载插件失败:', error)
+      ElMessage.error('卸载插件失败')
     }
   } finally {
     downloadingPlugins.value.delete(plugin.id)

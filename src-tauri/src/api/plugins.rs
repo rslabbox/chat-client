@@ -126,6 +126,13 @@ pub async fn download_plugin(plugin_id: String) -> Result<PluginDownloadResult, 
     Ok(repository.download_plugin(&plugin_id).await)
 }
 
+/// 卸载已安装的插件
+#[tauri::command]
+pub fn uninstall_plugin(plugin_id: String) -> Result<PluginDownloadResult, String> {
+    let repository = PluginRepository::new();
+    Ok(repository.uninstall_plugin(&plugin_id))
+}
+
 /// 清理所有插件（应用关闭时调用）
 pub fn cleanup_all_plugins() {
     if let Ok(manager) = get_plugin_manager() {

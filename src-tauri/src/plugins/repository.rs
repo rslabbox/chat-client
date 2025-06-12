@@ -174,6 +174,62 @@ impl PluginRepository {
         }
     }
 
+    /// 卸载已安装的插件
+    pub fn uninstall_plugin(&self, plugin_id: &str) -> PluginDownloadResult {
+        log_info!("开始卸载插件: {}", plugin_id);
+
+        // 获取已安装插件目录
+        let install_dir = get_root_plugin_installed_directory();
+        let plugin_dir = install_dir.join(plugin_id);
+
+        if !plugin_dir.exists() {
+            return PluginDownloadResult {
+                success: false,
+                message: format!("插件 {} 未安装或已被删除", plugin_id),
+                plugin_id: Some(plugin_id.to_string()),
+                installed_path: None,
+            };
+        }
+
+        // 读取插件配置以获取插件名称
+        let config_path = plugin_dir.join("config.toml");
+        let plugin_name = if config_path.exists() {
+            match std::fs::read_to_string(&config_path) {
+                Ok(content) => {
+                    match toml::from_str::<PluginConfig>(&content) {
+                        Ok(config) => config.plugin.name,
+                        Err(_) => plugin_id.to_string(),
+                    }
+                }
+                Err(_) => plugin_id.to_string(),
+            }
+        } else {
+            plugin_id.to_string()
+        };
+
+        // 删除插件目录及其所有内容
+        match std::fs::remove_dir_all(&plugin_dir) {
+            Ok(_) => {
+                log_info!("插件 {} 卸载成功，已删除目录: {:?}", plugin_name, plugin_dir);
+                PluginDownloadResult {
+                    success: true,
+                    message: format!("插件 \"{}\" 卸载成功", plugin_name),
+                    plugin_id: Some(plugin_id.to_string()),
+                    installed_path: Some(plugin_dir.to_string_lossy().to_string()),
+                }
+            }
+            Err(error) => {
+                log_warn!("删除插件目录失败: {:?}, 错误: {}", plugin_dir, error);
+                PluginDownloadResult {
+                    success: false,
+                    message: format!("卸载插件失败: {}", error),
+                    plugin_id: Some(plugin_id.to_string()),
+                    installed_path: None,
+                }
+            }
+        }
+    }
+
     /// 从目录加载可用插件信息
     fn load_available_plugin_from_directory(
         &self,
