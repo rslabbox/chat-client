@@ -6,7 +6,7 @@ use plugin_interfaces::{
     log_error, log_info,
     pluginui::{Context, Ui},
     CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata,
-    CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
+    StreamStatus, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -17,6 +17,19 @@ use uuid::Uuid;
 
 // 全局AppHandle存储，用于在回调函数中访问
 static GLOBAL_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+
+/// 后端流状态信息
+#[derive(Debug, Clone)]
+pub struct BackendStreamInfo {
+    pub stream_id: String,
+    pub plugin_id: String,
+    pub instance_id: String,
+    pub status: StreamStatus,
+    pub created_at: u64,
+}
+
+/// 后端流状态管理器（与插件中的STREAM_MANAGER分离）
+static BACKEND_STREAM_MANAGER: OnceLock<Arc<Mutex<HashMap<String, BackendStreamInfo>>>> = OnceLock::new();
 
 /// 插件实例信息
 pub struct PluginInstance {
@@ -57,6 +70,11 @@ pub struct PluginManager {
     app_handle: AppHandle,
 }
 
+/// 获取后端流管理器实例
+fn get_backend_stream_manager() -> &'static Arc<Mutex<HashMap<String, BackendStreamInfo>>> {
+    BACKEND_STREAM_MANAGER.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+
 impl PluginManager {
     pub fn new(app_handle: AppHandle) -> Self {
         Self {
@@ -87,6 +105,20 @@ impl PluginManager {
                     CStr::from_ptr(event).to_str(),
                     CStr::from_ptr(payload).to_str(),
                 ) {
+                    // 如果是流式消息事件，检查和更新后端流状态
+                    if event_str == "plugin-stream" {
+                        // 检查流是否被取消，如果被取消则拒绝发送
+                        if let Some(stream_id) = Self::extract_stream_id(payload_str) {
+                            if Self::is_stream_cancelled(&stream_id) {
+                                log_info!("流 {} 已被取消，拒绝发送消息", stream_id);
+                                return false; // 返回false表示发送失败
+                            }
+                        }
+
+                        // 更新后端流状态
+                        Self::handle_stream_event(payload_str);
+                    }
+
                     // 实现实际的Tauri事件发送
                     if let Some(app_handle) = GLOBAL_APP_HANDLE.get() {
                         match app_handle.emit(event_str, payload_str) {
@@ -800,6 +832,191 @@ impl PluginManager {
         *self.plugin_instances.lock().unwrap() = HashMap::new();
 
         log_info!("所有插件实例清理完成");
+    }
+
+    /// 取消流式消息
+    pub fn cancel_stream_message(&self, instance_id: &str, stream_id: &str) -> Result<String, String> {
+        use plugin_interfaces::{StreamMessageData, StreamControlData, StreamMessageWrapper};
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let instances = self.instances.lock().unwrap();
+
+        if let Some(instance) = instances.get(instance_id) {
+            if !instance.is_mounted {
+                return Err(format!("插件实例 {} 未挂载", instance_id));
+            }
+
+            if !instance.is_connected {
+                return Err(format!("插件实例 {} 未连接", instance_id));
+            }
+
+            // 使用后端流管理器
+            let backend_manager = get_backend_stream_manager();
+            if let Ok(mut manager) = backend_manager.lock() {
+                log_info!("后端流管理器中的所有流: {:?}", manager);
+
+                if let Some(stream_info) = manager.get_mut(stream_id) {
+                    match stream_info.status {
+                        StreamStatus::Active | StreamStatus::Paused | StreamStatus::Finalizing => {
+                            stream_info.status = StreamStatus::Cancelled;
+
+                            // 发送取消消息到前端
+                            let data = StreamMessageData::Control(StreamControlData {
+                                stream_id: stream_id.to_string(),
+                            });
+
+                            let wrapper = StreamMessageWrapper {
+                                r#type: "stream_cancel".to_string(),
+                                plugin_id: stream_info.plugin_id.clone(),
+                                instance_id: instance_id.to_string(),
+                                data,
+                                timestamp: SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_millis() as u64,
+                            };
+
+                            if let Ok(payload) = serde_json::to_string(&wrapper) {
+                                // 直接使用 app_handle 发送到前端
+                                let _ = self.app_handle.emit("plugin-stream", payload);
+                            }
+
+                            Ok(format!("流式消息 {} 取消成功", stream_id))
+                        }
+                        _ => Err(format!("流式消息 {} 状态无效，无法取消", stream_id))
+                    }
+                } else {
+                    Err(format!("流式消息 {} 未找到", stream_id))
+                }
+            } else {
+                Err("无法访问后端流管理器".to_string())
+            }
+        } else {
+            Err(format!("插件实例 {} 未找到", instance_id))
+        }
+    }
+
+    /// 从流式消息载荷中提取流ID
+    fn extract_stream_id(payload: &str) -> Option<String> {
+        use plugin_interfaces::StreamMessageWrapper;
+
+        if let Ok(wrapper) = serde_json::from_str::<StreamMessageWrapper>(payload) {
+            let stream_id = match &wrapper.data {
+                plugin_interfaces::StreamMessageData::Start(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::Data(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::End(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::Control(data) => &data.stream_id,
+            };
+            Some(stream_id.clone())
+        } else {
+            None
+        }
+    }
+
+    /// 检查流是否已被取消
+    fn is_stream_cancelled(stream_id: &str) -> bool {
+        let backend_manager = get_backend_stream_manager();
+        if let Ok(manager) = backend_manager.lock() {
+            if let Some(stream_info) = manager.get(stream_id) {
+                matches!(stream_info.status, StreamStatus::Cancelled)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// 处理流式消息事件，更新后端流状态
+    fn handle_stream_event(payload: &str) {
+        use plugin_interfaces::StreamMessageWrapper;
+
+        if let Ok(wrapper) = serde_json::from_str::<StreamMessageWrapper>(payload) {
+            let stream_id = match &wrapper.data {
+                plugin_interfaces::StreamMessageData::Start(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::Data(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::End(data) => &data.stream_id,
+                plugin_interfaces::StreamMessageData::Control(data) => &data.stream_id,
+            };
+
+            let status = match wrapper.r#type.as_str() {
+                "stream_start" => StreamStatus::Active,
+                "stream_data" => {
+                    if let plugin_interfaces::StreamMessageData::Data(data) = &wrapper.data {
+                        if data.is_final {
+                            StreamStatus::Finalizing
+                        } else {
+                            StreamStatus::Active
+                        }
+                    } else {
+                        StreamStatus::Active
+                    }
+                }
+                "stream_end" => {
+                    if let plugin_interfaces::StreamMessageData::End(data) = &wrapper.data {
+                        if data.success {
+                            StreamStatus::Completed
+                        } else {
+                            StreamStatus::Error
+                        }
+                    } else {
+                        StreamStatus::Completed
+                    }
+                }
+                "stream_pause" => StreamStatus::Paused,
+                "stream_resume" => StreamStatus::Active,
+                "stream_cancel" => StreamStatus::Cancelled,
+                _ => return, // 未知类型，忽略
+            };
+
+            Self::update_backend_stream_status(
+                stream_id,
+                &wrapper.plugin_id,
+                &wrapper.instance_id,
+                status,
+            );
+        }
+    }
+
+    /// 更新后端流状态（供事件监听器调用）
+    pub fn update_backend_stream_status(
+        stream_id: &str,
+        plugin_id: &str,
+        instance_id: &str,
+        status: StreamStatus,
+    ) {
+        let backend_manager = get_backend_stream_manager();
+        if let Ok(mut manager) = backend_manager.lock() {
+            match status {
+                StreamStatus::Active => {
+                    // 新建或更新流状态
+                    let stream_info = BackendStreamInfo {
+                        stream_id: stream_id.to_string(),
+                        plugin_id: plugin_id.to_string(),
+                        instance_id: instance_id.to_string(),
+                        status: status.clone(),
+                        created_at: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                    };
+                    manager.insert(stream_id.to_string(), stream_info);
+                    log_info!("后端流管理器：添加流 {}", stream_id);
+                }
+                StreamStatus::Completed | StreamStatus::Error | StreamStatus::Cancelled => {
+                    // 移除已结束的流
+                    manager.remove(stream_id);
+                    log_info!("后端流管理器：移除流 {}", stream_id);
+                }
+                _ => {
+                    // 更新现有流状态
+                    if let Some(stream_info) = manager.get_mut(stream_id) {
+                        stream_info.status = status.clone();
+                        log_info!("后端流管理器：更新流 {} 状态为 {:?}", stream_id, status);
+                    }
+                }
+            }
+        }
     }
 
     /// 查找插件元数据

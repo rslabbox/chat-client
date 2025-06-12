@@ -1,3 +1,4 @@
+use plugin_interfaces::StreamError;
 use plugin_interfaces::{
     create_plugin_interface_from_handler, log_info, log_warn,
     pluginui::{Context, Ui},
@@ -86,25 +87,45 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
 
                 // 发送一些示例数据块
                 let chunks = vec![
-                    "后台第一部分数据...",
-                    "后台第二部分数据...",
-                    "后台第三部分数据...",
-                    "后台第四部分数据，已完成",
+                    "后台第一部分数据...\n",
+                    "后台第二部分数据...\n",
+                    "后台第三部分数据...\n",
+                    "后台第四部分数据...\n",
+                    "后台第五部分数据...\n",
+                    "后台第六部分数据...\n",
+                    "后台第七部分数据...\n",
+                    "后台第八部分数据...\n",
+                    "后台第九部分数据...\n",
+                    "后台第十部分数据, 已完成\n",
                 ];
 
                 for (i, chunk) in chunks.iter().enumerate() {
                     let is_final = i == chunks.len() - 1;
-                    if let Err(e) =
-                        self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx)
-                    {
-                        log_warn!("Failed to send background stream chunk: {}", e);
-                        let _ = self.send_message_stream_end(
-                            &stream_id,
-                            false,
-                            Some(&format!("Error: {}", e)),
-                            &plugin_ctx,
-                        );
-                        return;
+                    match self.send_message_stream(&stream_id, chunk, is_final, &plugin_ctx) {
+                        Ok(_) => {
+                            log_info!("Sent chunk {}/{}: {}", i + 1, chunks.len(), chunk);
+                        }
+                        Err(e) => {
+                            match e {
+                                StreamError::StreamCancelled => {
+                                    log_info!(
+                                        "Stream {} was cancelled by user, stopping gracefully...",
+                                        stream_id
+                                    );
+                                    return; // 用户取消，直接返回，不发送错误消息
+                                }
+                                _ => {
+                                    log_warn!("Failed to send background stream chunk: {}", e);
+                                    let _ = self.send_message_stream_end(
+                                        &stream_id,
+                                        false,
+                                        Some(&format!("Error: {}", e)),
+                                        &plugin_ctx,
+                                    );
+                                    return;
+                                }
+                            }
+                        }
                     }
 
                     // 使用 tokio 异步延迟模拟真实的后台处理
@@ -369,7 +390,8 @@ impl PluginHandler for ExamplePlugin {
             "".to_string()
         };
 
-        let response = format!("Echo from {}: {}{}",
+        let response = format!(
+            "Echo from {}: {}{}",
             plugin_ctx.get_metadata().name,
             message,
             history_info

@@ -18,7 +18,8 @@ export {
   sendMessageToCurrentPlugin,
   scanAvailablePlugins,
   downloadPlugin,
-  uninstallPlugin
+  uninstallPlugin,
+  cancelStreamMessage
 } from './plugins'
 
 // 导出插件UI相关 API

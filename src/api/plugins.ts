@@ -144,3 +144,20 @@ export async function uninstallPlugin(pluginId: string): Promise<PluginDownloadR
     throw error
   }
 }
+
+/**
+ * 取消流式消息
+ * @param instanceId 实例ID
+ * @param streamId 流式消息ID
+ * @returns Promise<string> 成功消息
+ */
+export async function cancelStreamMessage(instanceId: string, streamId: string): Promise<string> {
+  console.log('取消流式消息:', { instanceId, streamId })
+  try {
+    const result = await invoke<string>('cancel_stream_message', { instanceId, streamId })
+    return result
+  } catch (error) {
+    console.error('Failed to cancel stream message:', error)
+    throw error
+  }
+}

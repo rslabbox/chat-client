@@ -7,6 +7,7 @@ use api::{
     connect_plugin, disconnect_plugin, dispose_plugin, download_github_repo, download_plugin,
     get_plugin_status, get_plugin_ui, greet, handle_plugin_ui_event, handle_plugin_ui_update,
     mount_plugin, scan_available_plugins, scan_plugins, send_message_to_plugin, uninstall_plugin,
+    cancel_stream_message,
 };
 
 use plugin_interfaces::log_info;
@@ -31,7 +32,8 @@ pub fn run() {
             download_github_repo,
             scan_available_plugins,
             download_plugin,
-            uninstall_plugin
+            uninstall_plugin,
+            cancel_stream_message
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

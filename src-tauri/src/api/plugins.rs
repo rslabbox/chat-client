@@ -133,6 +133,13 @@ pub fn uninstall_plugin(plugin_id: String) -> Result<PluginDownloadResult, Strin
     Ok(repository.uninstall_plugin(&plugin_id))
 }
 
+/// 取消流式消息
+#[tauri::command]
+pub fn cancel_stream_message(instance_id: String, stream_id: String) -> Result<String, String> {
+    let manager = get_plugin_manager()?;
+    manager.cancel_stream_message(&instance_id, &stream_id)
+}
+
 /// 清理所有插件（应用关闭时调用）
 pub fn cleanup_all_plugins() {
     if let Ok(manager) = get_plugin_manager() {

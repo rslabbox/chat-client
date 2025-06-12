@@ -1,5 +1,6 @@
 import { useHistoryStore } from "@/stores/history"
 import { usePageManagerStore } from "@/stores/pageManager"
+import { useStreamStore } from "@/stores/stream"
 import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { ref } from "vue"
 // 事件监听器
@@ -9,6 +10,7 @@ const eventListeners = ref<UnlistenFn[]>([])
 const setupEventListeners = async () => {
     const historyManager = useHistoryStore()
     const pageManagerStore = usePageManagerStore()
+    const streamStore = useStreamStore()
     try {
         // 监听新的插件消息事件
         const unlistenPluginMessage = await listen('plugin-message', (event) => {
@@ -44,27 +46,41 @@ const setupEventListeners = async () => {
                     }
                 }
                 const streamID = data.data.stream_id;
-                console.log(data)
+                console.log('流式消息事件:', data)
+                console.log('当前页面实例ID:', pageManagerStore.currentInstanceId)
+                console.log('消息中的实例ID:', data.instance_id)
                 switch (data.type) {
                     case 'stream_start':
                         historyManager.addMessageToSession(currentSessionId, '', streamID, 'plugin', 'streaming', 'active')
+                        // 在流式消息状态管理器中记录新的流
+                        console.log('记录流式消息:', { streamID, pluginId, instanceId: data.instance_id })
+                        streamStore.startStream(streamID, pluginId, data.instance_id, streamID)
                         break
                     case 'stream_data':
                         const isFinal = data.data.is_final;
                         historyManager.updateMessage(streamID, data.data.chunk, isFinal ? 'completed' : 'active')
+                        // 如果是最后一块数据，更新流状态
+                        if (isFinal) {
+                            streamStore.updateStreamStatus(streamID, 'completed')
+                        }
                         break
                     case 'stream_end':
                         const isSuccess = data.data.success;
                         historyManager.updateMessage(streamID, '', isSuccess ? 'completed' : 'error')
+                        // 结束流式消息
+                        streamStore.endStream(streamID, isSuccess ? 'completed' : 'error')
                         break;
-                    case 'stream_pause': 
-                        historyManager.updateMessage(streamID, '', 'paused') 
+                    case 'stream_pause':
+                        historyManager.updateMessage(streamID, '', 'paused')
+                        streamStore.pauseStream(streamID)
                         break;
                     case 'stream_resume':
                         historyManager.updateMessage(streamID, '', 'active')
+                        streamStore.resumeStream(streamID)
                         break
                     case 'stream_cancel':
-                        historyManager.updateMessage(streamID, '[已取消]', 'cancelled')
+                        historyManager.updateMessage(streamID, '', 'cancelled')
+                        streamStore.cancelStream(streamID)
                         break
                     default:
                         console.warn('Unknown stream message type:', data.type)
