@@ -306,7 +306,7 @@ impl PluginManager {
                 let mut plugin_instances = self.plugin_instances.lock().unwrap();
                 plugin_instances
                     .entry(plugin_id.to_string())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(instance_id.clone());
                 drop(plugin_instances);
 
@@ -560,7 +560,7 @@ impl PluginManager {
                 Err("插件实例未找到 2".to_string())
             }
         } else {
-            return Err("插件实例未找到 3".to_string());
+            Err("插件实例未找到 3".to_string())
         }
     }
 

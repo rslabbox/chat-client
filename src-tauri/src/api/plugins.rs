@@ -109,7 +109,7 @@ pub fn handle_plugin_ui_event(
 #[tauri::command]
 pub async fn download_github_repo() -> Result<DownloadResponse, String> {
     let repository = PluginRepository::new();
-    Ok(repository.download_github_repo().await?)
+    repository.download_github_repo().await
 }
 
 /// 扫描可用插件列表（从插件仓库）

@@ -4,7 +4,13 @@ use std::{fs, io::Cursor};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-use crate::plugins::{config::{DownloadConfig, PlatformDownload, PluginConfig}, directories::{get_plugin_repository_directory, get_plugin_repository_root, get_root_plugin_installed_directory}};
+use crate::plugins::{
+    config::{DownloadConfig, PlatformDownload, PluginConfig},
+    directories::{
+        get_plugin_repository_directory, get_plugin_repository_root,
+        get_root_plugin_installed_directory,
+    },
+};
 
 /// 可用插件信息（来自插件仓库）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +93,12 @@ fn extract_repo_info(url: &str) -> Result<RepoInfo, String> {
 #[derive(Debug)]
 pub struct PluginRepository;
 
+impl Default for PluginRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRepository {
     pub fn new() -> Self {
         Self
@@ -156,7 +168,7 @@ impl PluginRepository {
 
         // 执行下载
         match self
-            .download_and_install_plugin(plugin_info, &platform_download)
+            .download_and_install_plugin(plugin_info, platform_download)
             .await
         {
             Ok(installed_path) => PluginDownloadResult {
@@ -195,12 +207,10 @@ impl PluginRepository {
         let config_path = plugin_dir.join("config.toml");
         let plugin_name = if config_path.exists() {
             match std::fs::read_to_string(&config_path) {
-                Ok(content) => {
-                    match toml::from_str::<PluginConfig>(&content) {
-                        Ok(config) => config.plugin.name,
-                        Err(_) => plugin_id.to_string(),
-                    }
-                }
+                Ok(content) => match toml::from_str::<PluginConfig>(&content) {
+                    Ok(config) => config.plugin.name,
+                    Err(_) => plugin_id.to_string(),
+                },
                 Err(_) => plugin_id.to_string(),
             }
         } else {
@@ -210,7 +220,11 @@ impl PluginRepository {
         // 删除插件目录及其所有内容
         match std::fs::remove_dir_all(&plugin_dir) {
             Ok(_) => {
-                log_info!("插件 {} 卸载成功，已删除目录: {:?}", plugin_name, plugin_dir);
+                log_info!(
+                    "插件 {} 卸载成功，已删除目录: {:?}",
+                    plugin_name,
+                    plugin_dir
+                );
                 PluginDownloadResult {
                     success: true,
                     message: format!("插件 \"{}\" 卸载成功", plugin_name),
@@ -378,14 +392,15 @@ name = "{}"
 version = "{}"
 description = "{}"
 author = "{}"
-library = "{}"
+library = "{}-{}"
 "#,
                 plugin_info.id,
                 plugin_info.name,
                 plugin_info.version,
                 plugin_info.description,
                 plugin_info.author,
-                format!("{}-{}", plugin_info.id, plugin_info.version)
+                plugin_info.id,
+                plugin_info.version
             );
 
             std::fs::write(&target_config_path, basic_config)
