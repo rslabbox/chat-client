@@ -2,6 +2,7 @@ import { useHistoryStore } from "@/stores/history"
 import { usePageManagerStore } from "@/stores/pageManager"
 import { useTabManagerStore } from "@/stores/tabManager"
 import { useStreamStore } from "@/stores/stream"
+import { usePluginStore } from "@/stores/plugins"
 import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { ref } from "vue"
 // 事件监听器
@@ -13,6 +14,7 @@ const setupEventListeners = async () => {
     const pageManagerStore = usePageManagerStore()
     const tabManagerStore = useTabManagerStore()
     const streamStore = useStreamStore()
+    const pluginStore = usePluginStore()
     try {
         // 监听新的插件消息事件
         const unlistenPluginMessage = await listen('plugin-message', (event) => {
@@ -111,6 +113,22 @@ const setupEventListeners = async () => {
             }
         })
         eventListeners.value.push(unlistenPluginStream)
+
+        // 监听插件断开连接请求事件
+        const unlistenPluginDisconnectRequest = await listen('plugin-disconnect-request', async (event) => {
+            console.log('Plugin disconnect request event:', event.payload)
+            try {
+                const data = JSON.parse(event.payload as string)
+                const { instance_id } = data
+
+                await pluginStore.disconnectPluginInstance(instance_id)
+
+                console.log(`Plugin instance ${instance_id} disconnected by plugin request`)
+            } catch (e) {
+                console.error('Failed to handle plugin-disconnect-request event:', e)
+            }
+        })
+        eventListeners.value.push(unlistenPluginDisconnectRequest)
     } catch (error) {
         console.error('Failed to setup event listeners:', error)
     }

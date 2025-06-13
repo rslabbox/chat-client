@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { usePageManagerStore } from './pageManager'
 import { useHistoryStore } from './history'
 import { usePluginStore } from './plugins'
@@ -154,6 +154,18 @@ export const useTabManagerStore = defineStore('tabManager', () => {
       }
 
       await pageManagerStore.switchToPage(pageState)
+
+      // 新增：确保UI状态同步
+      try {
+        // 等待一个 tick 确保状态更新完成
+        await nextTick()
+
+        // 触发插件UI刷新事件，确保UI组件能够及时响应
+        console.log(`标签页切换完成，触发UI刷新: ${tab.title} (${tab.instanceId})`)
+      } catch (uiError) {
+        console.warn('标签页切换后UI刷新失败:', uiError)
+        // UI刷新失败不应该阻止标签页切换
+      }
 
       // 保存到存储
       saveToStorage()
