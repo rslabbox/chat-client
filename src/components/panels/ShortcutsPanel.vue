@@ -68,6 +68,7 @@ const isPluginConnected = computed(() => {
 
 // 当前插件ID
 const currentPluginId = computed(() => pageManagerStore.currentPluginId)
+const currentInstanceId = computed(() => pageManagerStore.currentInstanceId)
 
 // 快捷短语状态
 const shortcuts = ref<Shortcut[]>([])
@@ -99,6 +100,12 @@ const handleAddShortcut = () => {
 
   if (!currentPluginId.value) {
     ElMessage.error('当前没有活跃的插件')
+    return
+  }
+
+  const success = shortcutsStore.addShortcut(currentPluginId.value, newShortcut.title.trim(), newShortcut.content.trim())
+  if (!success) {
+    ElMessage.error('添加快捷短语失败，可能已存在相同内容的快捷短语')
     return
   }
 
@@ -162,6 +169,7 @@ const handleShortcutClick = async (content: string) => {
       throw new Error('当前没有活跃的会话')
     }
     historyStore.addMessageToSession(currentSessionId, content, historyStore.generateMessageId(), 'user')
+    pluginStore.sendMessage(content, currentPluginId.value, currentInstanceId.value)
     ElMessage.success('快捷短语已发送')
   } catch (error) {
     ElMessage.error('发送失败，请检查插件连接状态')
