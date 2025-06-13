@@ -1,5 +1,6 @@
 import { useHistoryStore } from "@/stores/history"
 import { usePageManagerStore } from "@/stores/pageManager"
+import { useTabManagerStore } from "@/stores/tabManager"
 import { useStreamStore } from "@/stores/stream"
 import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { ref } from "vue"
@@ -10,6 +11,7 @@ const eventListeners = ref<UnlistenFn[]>([])
 const setupEventListeners = async () => {
     const historyManager = useHistoryStore()
     const pageManagerStore = usePageManagerStore()
+    const tabManagerStore = useTabManagerStore()
     const streamStore = useStreamStore()
     try {
         // 监听新的插件消息事件
@@ -18,7 +20,17 @@ const setupEventListeners = async () => {
             try {
                 const data = JSON.parse(event.payload as string)
                 const pluginId = data.plugin_id;
-                let currentSessionId = pageManagerStore.currentSessionId;
+                const instanceId = data.instance_id;
+
+                // 根据instanceId从tabManager获取正确的sessionId
+                let currentSessionId = tabManagerStore.getSessionIdByInstanceId(instanceId);
+
+                // 如果找不到对应的sessionId，回退到pageManager的currentSessionId
+                if (!currentSessionId) {
+                    currentSessionId = pageManagerStore.currentSessionId;
+                    console.warn(`未找到instanceId ${instanceId} 对应的sessionId，使用当前活跃页面的sessionId: ${currentSessionId}`);
+                }
+
                 if (!currentSessionId) {
                     currentSessionId = historyManager.createNewSession(pluginId)
                     if (pageManagerStore.currentPage) {
@@ -37,8 +49,17 @@ const setupEventListeners = async () => {
             try {
                 const data = JSON.parse(event.payload as string)
                 const pluginId = data.plugin_id;
-                // const instantID = data.instance_id;
-                let currentSessionId = pageManagerStore.currentSessionId;
+                const instanceId = data.instance_id;
+
+                // 根据instanceId从tabManager获取正确的sessionId
+                let currentSessionId = tabManagerStore.getSessionIdByInstanceId(instanceId);
+
+                // 如果找不到对应的sessionId，回退到pageManager的currentSessionId
+                if (!currentSessionId) {
+                    currentSessionId = pageManagerStore.currentSessionId;
+                    console.warn(`未找到instanceId ${instanceId} 对应的sessionId，使用当前活跃页面的sessionId: ${currentSessionId}`);
+                }
+
                 if (!currentSessionId) {
                     currentSessionId = historyManager.createNewSession(pluginId)
                     if (pageManagerStore.currentPage) {

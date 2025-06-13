@@ -191,11 +191,6 @@ impl PluginManager {
         plugin_id: &str,
         instance_id: Option<String>,
     ) -> Result<String, String> {
-        log_info!(
-            "挂载插件实例: {} {}",
-            plugin_id,
-            instance_id.as_ref().unwrap_or(&"".to_string())
-        );
         // 生成或使用提供的实例ID
         let instance_id = instance_id.unwrap_or_else(|| Uuid::new_v4().to_string());
 
@@ -211,7 +206,6 @@ impl PluginManager {
         // 加载插件
         let mut plugin_metadata = self.find_plugin_metadata(plugin_id)?;
         plugin_metadata.instance_id = Some(instance_id.clone());
-        log_info!("插件动态链接库路径: {:?}", plugin_metadata.library_path);
         let library_path = plugin_metadata
             .library_path
             .as_ref()
@@ -400,10 +394,6 @@ impl PluginManager {
 
     /// 连接插件实例
     pub fn connect_plugin(&self, instance_id: &str) -> Result<String, String> {
-        log_info!("连接插件实例: {}", instance_id);
-        for instance in self.instances.lock().unwrap().values() {
-            log_info!("实例: {}", instance.instance_id);
-        }
         let mut instances = self.instances.lock().unwrap();
 
         if let Some(instance) = instances.get_mut(instance_id) {

@@ -64,15 +64,19 @@ const handleCopyMessage = (content: string) => {
 
 const handleNewChat = async () => {
   try {
-    // 检查当前是否有活跃的插件
-    if (!pageManagerStore.currentPluginId) {
+    // 检查当前是否有活跃的页面和插件
+    if (!pageManagerStore.currentPluginId || !pageManagerStore.currentPage) {
       ElMessage.warning('请先选择一个插件')
       return
     }
 
-    // 使用页面管理器创建新页面（包含新的插件实例和会话）
-    await pageManagerStore.createNewPage(pageManagerStore.currentPluginId, '新的聊天')
-    ElMessage.success('已创建新的聊天')
+    // 在当前插件实例下创建新会话（不重新挂载实例）
+    const sessionId = await pageManagerStore.createNewSessionInCurrentPage('新的聊天')
+    if (sessionId) {
+      ElMessage.success('已创建新的聊天')
+    } else {
+      throw new Error('创建会话失败')
+    }
   } catch (error) {
     console.error('创建新聊天失败:', error)
     ElMessage.error('创建聊天失败')

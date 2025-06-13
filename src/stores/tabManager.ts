@@ -461,6 +461,36 @@ export const useTabManagerStore = defineStore('tabManager', () => {
     return tabs.value.find(predicate)
   }
 
+  // 根据instanceId获取对应的sessionId
+  const getSessionIdByInstanceId = (instanceId: string): string | null => {
+    const tab = tabs.value.find(tab => tab.instanceId === instanceId)
+    return tab ? tab.sessionId : null
+  }
+
+  // 更新当前活跃标签页的sessionId
+  const updateCurrentTabSession = (sessionId: string): boolean => {
+    if (!activeTabId.value) {
+      console.warn('没有活跃的标签页，无法更新sessionId')
+      return false
+    }
+
+    const activeTab = tabs.value.find(tab => tab.id === activeTabId.value)
+    if (!activeTab) {
+      console.warn(`未找到活跃标签页 ${activeTabId.value}`)
+      return false
+    }
+
+    // 更新标签页的sessionId和时间戳
+    activeTab.sessionId = sessionId
+    activeTab.updatedAt = new Date()
+
+    // 保存到本地存储
+    saveToStorage()
+
+    console.log(`已更新标签页 ${activeTab.title} 的sessionId为: ${sessionId}`)
+    return true
+  }
+
   // 初始化函数
   const initialize = async (): Promise<void> => {
     await loadFromStorage()
@@ -504,6 +534,10 @@ export const useTabManagerStore = defineStore('tabManager', () => {
     // 查询方法
     getPluginSessionStats,
     getTabsByPluginId,
-    findTab
+    findTab,
+    getSessionIdByInstanceId,
+
+    // 会话同步方法
+    updateCurrentTabSession
   }
 })

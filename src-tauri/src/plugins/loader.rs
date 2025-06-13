@@ -1,4 +1,4 @@
-use plugin_interfaces::{log_info, log_warn, PluginMetadata};
+use plugin_interfaces::{log_warn, PluginMetadata};
 use walkdir::WalkDir;
 
 use crate::plugins::{config::PluginConfig, directories::get_plugins_directories};
@@ -25,8 +25,6 @@ impl PluginLoader {
                 log_warn!("Plugins directory does not exist: {:?}", plugins_dir);
                 continue;
             }
-
-            log_info!("Scanning plugins directory: {:?}", plugins_dir);
 
             // 扫描当前插件目录
             for entry in WalkDir::new(&plugins_dir)
@@ -113,8 +111,6 @@ impl PluginLoader {
         } else {
             format!("lib{}.so", library_name)
         };
-
-        log_info!("Looking for library file: {}", library_name_dylib);
 
         // 直接在插件目录中查找
         let direct_path = plugin_dir.join(&library_name_dylib);

@@ -285,6 +285,7 @@ impl PluginHandler for ExamplePlugin {
             metadata.version,
             metadata.instance_id.clone().unwrap_or("None".to_string())
         );
+        log_info!("Config Path: {}", metadata.config_path);
 
         // 初始化 tokio 异步运行时
         match Runtime::new() {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { usePluginStore } from './plugins'
 import { useHistoryStore } from './history'
+import { useTabManagerStore } from './tabManager'
 
 // 页面状态接口
 export interface PageState {
@@ -29,6 +30,7 @@ export const usePageManagerStore = defineStore('pageManager', () => {
   // 获取其他store实例
   const pluginStore = usePluginStore()
   const historyStore = useHistoryStore()
+  const tabManagerStore = useTabManagerStore()
 
   // 计算属性
   const currentPluginId = computed(() => currentPage.value?.pluginId || null)
@@ -144,9 +146,51 @@ export const usePageManagerStore = defineStore('pageManager', () => {
         updatedAt: new Date()
       }
 
+      // 同步更新当前活跃标签页的sessionId
+      const tabUpdated = tabManagerStore.updateCurrentTabSession(sessionId)
+      if (!tabUpdated) {
+        console.warn('标签页sessionId同步失败，但页面会话切换成功')
+      }
+
       return true
     } catch (error) {
       console.error('切换会话失败:', error)
+      throw error
+    }
+  }
+
+  // 在当前页面创建新会话（不重新挂载实例）
+  const createNewSessionInCurrentPage = async (title?: string): Promise<string | null> => {
+    try {
+      if (!currentPage.value) {
+        throw new Error('当前没有活跃页面')
+      }
+
+      // 创建新会话
+      const sessionId = historyStore.createNewSession(currentPage.value.pluginId, title)
+      if (!sessionId) {
+        throw new Error('创建会话失败')
+      }
+
+      // 更新当前页面的会话ID
+      currentPage.value = {
+        ...currentPage.value,
+        sessionId,
+        updatedAt: new Date()
+      }
+
+      // 同步更新当前活跃标签页的sessionId
+      const tabUpdated = tabManagerStore.updateCurrentTabSession(sessionId)
+      if (!tabUpdated) {
+        console.warn('标签页sessionId同步失败，但页面会话创建成功')
+      }
+
+      // 添加到历史记录
+      addToHistory(currentPage.value)
+
+      return sessionId
+    } catch (error) {
+      console.error('创建新会话失败:', error)
       throw error
     }
   }
@@ -289,6 +333,7 @@ export const usePageManagerStore = defineStore('pageManager', () => {
     createNewPage,
     switchToPage,
     switchToSession,
+    createNewSessionInCurrentPage,
     getPageHistory,
     getPluginPageHistory,
     removeFromHistory,

@@ -229,3 +229,6 @@ chat-client/
 cd src-tauri
 cargo run --bin test_plugins
 ```
+
+## TODO
+
