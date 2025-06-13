@@ -184,9 +184,10 @@ $$ e^{i\pi} = \cos\pi + i\sin\pi = -1 + 0i $$",
         };
 
         // 现在可以正确地发送消息到前端
-        instance_context.send_message_to_frontend(
-            &format!("Age updated from {} to {} (+{})", old_age, new_age, 5),
-        );
+        instance_context.send_message_to_frontend(&format!(
+            "Age updated from {} to {} (+{})",
+            old_age, new_age, 5
+        ));
 
         // 刷新UI
         instance_context.refresh_ui();
@@ -395,9 +396,10 @@ impl PluginHandler for ExamplePlugin {
         );
 
         // 向前端发送响应
-        plugin_ctx.send_message_to_frontend(
-            &format!("[{}]收到消息：{}{}", metadata.name, message, history_info),
-        );
+        plugin_ctx.send_message_to_frontend(&format!(
+            "[{}]收到消息：{}{}",
+            metadata.name, message, history_info
+        ));
         Ok(response)
     }
 }

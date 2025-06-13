@@ -11,4 +11,6 @@ pub use plugin_interfaces::{
     CreatePluginFn, DestroyPluginFn, PluginHandler, PluginMetadata, CREATE_PLUGIN_SYMBOL,
     DESTROY_PLUGIN_SYMBOL,
 };
-pub use repository::{AvailablePluginInfo, PluginDownloadResult, PluginRepository, DownloadResponse};
+pub use repository::{
+    AvailablePluginInfo, DownloadResponse, PluginDownloadResult, PluginRepository,
+};

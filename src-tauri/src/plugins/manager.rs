@@ -1,13 +1,13 @@
 use crate::plugins::PluginLoader;
 use libloading::{Library, Symbol};
 use plugin_interfaces::metadata::HistoryMessage;
-use serde_json;
 use plugin_interfaces::{
     log_error, log_info,
     pluginui::{Context, Ui},
-    CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata,
-    StreamStatus, CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
+    CreatePluginFn, DestroyPluginFn, HostCallbacks, PluginInterface, PluginMetadata, StreamStatus,
+    CREATE_PLUGIN_SYMBOL, DESTROY_PLUGIN_SYMBOL,
 };
+use serde_json;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -29,7 +29,8 @@ pub struct BackendStreamInfo {
 }
 
 /// 后端流状态管理器（与插件中的STREAM_MANAGER分离）
-static BACKEND_STREAM_MANAGER: OnceLock<Arc<Mutex<HashMap<String, BackendStreamInfo>>>> = OnceLock::new();
+static BACKEND_STREAM_MANAGER: OnceLock<Arc<Mutex<HashMap<String, BackendStreamInfo>>>> =
+    OnceLock::new();
 
 /// 插件实例信息
 pub struct PluginInstance {
@@ -826,8 +827,12 @@ impl PluginManager {
     }
 
     /// 取消流式消息
-    pub fn cancel_stream_message(&self, instance_id: &str, stream_id: &str) -> Result<String, String> {
-        use plugin_interfaces::{StreamMessageData, StreamControlData, StreamMessageWrapper};
+    pub fn cancel_stream_message(
+        &self,
+        instance_id: &str,
+        stream_id: &str,
+    ) -> Result<String, String> {
+        use plugin_interfaces::{StreamControlData, StreamMessageData, StreamMessageWrapper};
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let instances = self.instances.lock().unwrap();
@@ -874,7 +879,7 @@ impl PluginManager {
 
                             Ok(format!("流式消息 {} 取消成功", stream_id))
                         }
-                        _ => Err(format!("流式消息 {} 状态无效，无法取消", stream_id))
+                        _ => Err(format!("流式消息 {} 状态无效，无法取消", stream_id)),
                     }
                 } else {
                     Err(format!("流式消息 {} 未找到", stream_id))
@@ -992,7 +997,6 @@ impl PluginManager {
                             .as_secs(),
                     };
                     manager.insert(stream_id.to_string(), stream_info);
-                    log_info!("后端流管理器：添加流 {}", stream_id);
                 }
                 StreamStatus::Completed | StreamStatus::Error | StreamStatus::Cancelled => {
                     // 移除已结束的流

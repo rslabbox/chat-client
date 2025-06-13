@@ -1,5 +1,6 @@
 use crate::plugins::{
-    AvailablePluginInfo, DownloadResponse, PluginDownloadResult, PluginManager, PluginMetadata, PluginRepository
+    AvailablePluginInfo, DownloadResponse, PluginDownloadResult, PluginManager, PluginMetadata,
+    PluginRepository,
 };
 use plugin_interfaces::metadata::HistoryMessage;
 use std::sync::{Arc, OnceLock};

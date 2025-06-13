@@ -68,11 +68,13 @@ impl PluginLoader {
         }
         match PluginConfig::from_file(&config_path) {
             Ok(config) => {
-
                 let library_path = if let Some(library_name) = config.plugin.library {
                     self.find_library_file(plugin_dir, library_name.as_str())
                 } else {
-                    self.find_library_file(plugin_dir, &format!("{}-{}", config.plugin.id, config.plugin.version))
+                    self.find_library_file(
+                        plugin_dir,
+                        &format!("{}-{}", config.plugin.id, config.plugin.version),
+                    )
                 };
                 if library_path.is_none() {
                     log_warn!("Failed to find library file for plugin: {:?}", config_path);
