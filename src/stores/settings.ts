@@ -19,7 +19,8 @@ export interface AppSettings {
   autoScrollToLatest: boolean
   enableMarkdown: boolean
   renderInputMessageAsMarkdown: boolean
-  
+  clearMessageInputOnSend: boolean,
+
   // 高级设置
   developerMode: boolean
   hardwareAcceleration: boolean
@@ -43,6 +44,7 @@ const defaultSettings: AppSettings = {
   autoScrollToLatest: true,
   enableMarkdown: true,
   renderInputMessageAsMarkdown: false,
+  clearMessageInputOnSend: true,
   
   // 高级设置
   developerMode: false,

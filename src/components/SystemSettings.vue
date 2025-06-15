@@ -132,6 +132,16 @@
               <el-switch v-model="settings.enableMarkdown" />
             </div>
           </div>
+
+          <div class="setting-item">
+            <div class="setting-label">
+              <span>清空消息栏</span>
+              <el-text type="info" size="small">发送消息后清空输入框</el-text>
+            </div>
+            <div class="setting-control">
+              <el-switch v-model="settings.clearMessageInputOnSend" />
+            </div>
+          </div>
         </div>
       </el-tab-pane>
 
@@ -334,16 +344,16 @@ const handleClose = () => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .setting-label {
     margin-right: 0;
     margin-bottom: 12px;
   }
-  
+
   .setting-control {
     width: 100%;
   }
-  
+
   .setting-control .el-select,
   .setting-control .el-input {
     width: 100% !important;

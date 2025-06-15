@@ -162,10 +162,6 @@ const loadPluginUI = async (instanceId: string) => {
     const ui = await getPluginUi(instanceId)
     uiComponents.value = ui
 
-    // 现有的初始化逻辑...
-
-    console.log(`插件UI加载完成: ${instanceId}, 组件数量: ${ui.length}`)
-
     // 初始化文本框和下拉选择框的值
     const initializeComponentValues = (components: Component[]) => {
       components.forEach(component => {
@@ -262,8 +258,7 @@ const handleToggleChange = async (componentId: string, value: boolean) => {
 }
 
 // 监听实例ID变化
-watch(() => props.instanceId, async (newInstanceId, oldInstanceId) => {
-  console.log(`PluginUI instanceId 变化: ${oldInstanceId} → ${newInstanceId}`)
+watch(() => props.instanceId, async (newInstanceId, _) => {
 
   if (newInstanceId) {
     // 新增：延迟加载，确保实例状态已经同步

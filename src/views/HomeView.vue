@@ -14,8 +14,7 @@ import { cleanupEventListeners, setupEventListeners, downloadGithubRepo } from '
 // 初始化
 onMounted(() => {
   setupEventListeners();
-  downloadGithubRepo().then((res) => {
-    console.log(res);
+  downloadGithubRepo().then((_) => {
   });
 })
 

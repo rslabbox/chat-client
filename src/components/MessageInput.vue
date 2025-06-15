@@ -44,12 +44,16 @@ import { usePluginStore } from '@/stores/plugins'
 import { useStreamStore } from '@/stores/stream'
 import { useTabManagerStore } from '@/stores/tabManager'
 import { cancelStreamMessage } from '@/api'
+import { useSettingsStore } from '@/stores/settings'
 
 const historyStore = useHistoryStore()
 const pageManagerStore = usePageManagerStore()
 const pluginStore = usePluginStore()
 const streamStore = useStreamStore()
 const tabManagerStore = useTabManagerStore()
+// 使用设置存储
+const settingsStore = useSettingsStore()
+const { settings } = settingsStore
 const inputText = ref('')
 
 // 获取当前实例ID（优先使用 tabManager，回退到 pageManager）
@@ -113,7 +117,7 @@ const canStop = computed(() => {
 })
 
 const handleSend = async () => {
-  const content = inputText.value.trim()
+  const content = inputText.value
   if (!content) {
     ElMessage.warning('请输入消息内容')
     return
@@ -146,8 +150,11 @@ const handleSend = async () => {
     }
 
     historyStore.addMessageToSession(sessionId, content, historyStore.generateMessageId(), 'user')
+    console.log('发送消息 - 会话ID:', sessionId, '内容:', content)
     pluginStore.sendMessage(content, pluginId, instanceId)
-    inputText.value = ''
+    if (settings.clearMessageInputOnSend) {
+      inputText.value = ''
+    }
   } catch (error) {
     // 错误已在 store 中处理，这里不需要额外处理
   }
