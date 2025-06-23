@@ -2,6 +2,8 @@
 
 一个基于 Tauri、Vue 3 和 Rust 构建的现代化、可扩展的聊天客户端。具有强大的插件架构，支持动态加载和管理聊天插件。
 
+![插件管理界面](./assets/plugin_manage.png)
+
 [English Documentation](./README.md)
 
 ## 特性
@@ -90,7 +92,22 @@ chat-client/
 
 ### 插件开发
 
+以下是一些插件示例，展示了插件系统的功能：
+
+#### DeepSeek 聊天插件
+![DeepSeek 插件](./assets/deepseek.jpg)
+
+#### WebSocket 客户端插件
+![WebSocket 客户端](./assets/websocket-client.jpg)
+
+#### WebSocket 服务器插件
+![WebSocket 服务器](./assets/wensocket-server.jpg)
+
+#### 简单串口插件
+![简单串口插件](./assets/simaple-serial.jpg)
+
 参考 [Deepseek-plugin](https://github.com/luodeb/deepseek-plugin) 或者 [Example](src-tauri/src/plugins)
+
 1. **创建新插件**
    ```bash
    cd src-tauri/src/plugins
