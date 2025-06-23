@@ -2,7 +2,7 @@
 
 A modern, extensible chat client built with Tauri, Vue 3, and Rust. Features a powerful plugin architecture that supports dynamic loading and management of chat plugins.
 
-![Plugin Management Interface](./assets/plugin_manage.png)
+![Plugin Management Interface](./assets/plugin-manage.png)
 
 [中文文档](./README_zh.md)
 
@@ -114,7 +114,7 @@ Here are some example plugins that demonstrate the capabilities of the plugin sy
 
 #### Simple Serial Plugin
 
-![Simple Serial Plugin](./assets/simaple-serial.jpg)
+![Simple Serial Plugin](./assets/simple-serial.jpg)
 
 Refer to [Deepseek-plugin](https://github.com/luodeb/deepseek-plugin) or [Example](src-tauri/src/plugins)
 
