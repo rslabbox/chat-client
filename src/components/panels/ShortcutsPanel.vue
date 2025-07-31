@@ -9,6 +9,7 @@
           <div class="shortcut-text" :class="{ 'no-title': !shortcut.title }">{{ shortcut.content }}</div>
         </div>
         <div class="shortcut-actions">
+          <el-button type="primary" size="small" icon="Edit" circle plain @click.stop="handleEditShortcut(shortcut)" />
           <el-button type="danger" size="small" :icon="Delete" circle plain
             @click.stop="handleDeleteShortcut(shortcut.id)" />
         </div>
@@ -42,12 +43,28 @@
         <el-button type="primary" @click="handleAddShortcut">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑快捷短语对话框 -->
+    <el-dialog v-model="showEditShortcut" title="编辑快捷短语" width="400px">
+      <el-form :model="editShortcut" label-width="80px">
+        <el-form-item label="标题">
+          <el-input v-model="editShortcut.title" placeholder="标题（可选）" />
+        </el-form-item>
+        <el-form-item label="内容" required>
+          <el-input v-model="editShortcut.content" type="textarea" :rows="4" placeholder="请输入快捷短语内容" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditShortcut = false">取消</el-button>
+        <el-button type="primary" @click="handleUpdateShortcut">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-import { Delete, FolderAdd } from '@element-plus/icons-vue'
+import { Delete, FolderAdd, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
 import { usePageManagerStore } from '@/stores/pageManager'
@@ -73,10 +90,55 @@ const currentInstanceId = computed(() => pageManagerStore.currentInstanceId)
 // 快捷短语状态
 const shortcuts = ref<Shortcut[]>([])
 const showAddShortcut = ref(false)
+const showEditShortcut = ref(false)
 const newShortcut = reactive({
   title: '',
   content: ''
 })
+const editShortcut = reactive({
+  id: '',
+  title: '',
+  content: ''
+})
+// 编辑快捷短语弹窗
+const handleEditShortcut = (shortcut: Shortcut) => {
+  editShortcut.id = shortcut.id
+  editShortcut.title = shortcut.title || ''
+  editShortcut.content = shortcut.content
+  showEditShortcut.value = true
+}
+
+const handleUpdateShortcut = () => {
+  if (!editShortcut.content.trim()) {
+    ElMessage.warning('请填写内容')
+    return
+  }
+  if (!currentPluginId.value) {
+    ElMessage.error('当前没有活跃的插件')
+    return
+  }
+  const success = shortcutsStore.updateShortcut(
+    editShortcut.id,
+    currentPluginId.value,
+    editShortcut.title.trim(),
+    editShortcut.content.trim()
+  )
+  if (!success) {
+    ElMessage.error('编辑失败，可能已存在相同内容的快捷短语')
+    return
+  }
+  try {
+    loadShortcuts()
+    showEditShortcut.value = false
+    editShortcut.id = ''
+    editShortcut.title = ''
+    editShortcut.content = ''
+    ElMessage.success('快捷短语已更新')
+  } catch (error) {
+    ElMessage.error('编辑快捷短语失败')
+    console.error('编辑快捷短语失败:', error)
+  }
+}
 
 // 加载当前插件的快捷短语
 const loadShortcuts = () => {
