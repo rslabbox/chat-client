@@ -9,7 +9,8 @@
           <div class="shortcut-text" :class="{ 'no-title': !shortcut.title }">{{ shortcut.content }}</div>
         </div>
         <div class="shortcut-actions">
-          <el-button type="primary" size="small" icon="Edit" circle plain @click.stop="handleEditShortcut(shortcut)" />
+          <el-button type="primary" size="small" :icon="EditPen" circle plain
+            @click.stop="handleEditShortcut(shortcut)" />
           <el-button type="danger" size="small" :icon="Delete" circle plain
             @click.stop="handleDeleteShortcut(shortcut.id)" />
         </div>
@@ -64,7 +65,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-import { Delete, FolderAdd, Edit } from '@element-plus/icons-vue'
+import { Delete, FolderAdd, EditPen } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useHistoryStore } from '@/stores/history'
 import { usePageManagerStore } from '@/stores/pageManager'
